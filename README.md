@@ -1,27 +1,29 @@
 # Workbench
 
-## Build (local)
+Workbench is a .NET-based CLI for interacting with the Workbench tooling.
 
-Build the solution:
+## Quickstart
+
+### Prerequisites
+
+- .NET SDK (latest stable recommended)
+
+### Build
 
 ```bash
 dotnet build Workbench.slnx
 ```
 
-## Test
-
-Run the automated tests:
-
-```bash
-dotnet test tests/Workbench.Tests/Workbench.Tests.csproj
-```
-
-## Run (CLI)
-
-Run the CLI locally:
+### Run (CLI)
 
 ```bash
 dotnet run --project src/Workbench/Workbench.csproj -- --help
+```
+
+### Test
+
+```bash
+dotnet test tests/Workbench.Tests/Workbench.Tests.csproj
 ```
 
 ## Verification
@@ -45,3 +47,9 @@ Replace the runtime identifier with your target (e.g., `win-x64`, `linux-x64`).
 ## Command reference
 
 See the full CLI command list and options in `docs/30-contracts/cli-help.md`.
+
+## Contributing
+
+- [Contribution guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md)
