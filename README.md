@@ -14,7 +14,17 @@ Workbench is a .NET-based CLI for interacting with the Workbench tooling.
 dotnet build Workbench.slnx
 ```
 
-### Run (CLI)
+## Pack (NuGet tool)
+
+Build the .NET tool package:
+
+```bash
+dotnet pack src/Workbench/Workbench.csproj -c Release
+```
+
+## Test
+
+Run the automated tests:
 
 ```bash
 dotnet run --project src/Workbench/Workbench.csproj -- --help
@@ -31,6 +41,17 @@ dotnet test tests/Workbench.Tests/Workbench.Tests.csproj
 Run the full test suite (matches CI expectations):
 
 ```bash
+dotnet test Workbench.slnx
+```
+
+## CI
+
+GitHub Actions runs build and test jobs for each OS/.NET SDK pair in the matrix
+(`ubuntu-latest`, `windows-latest`, `macos-latest` with .NET `10.0.x`). The
+workflow runs:
+
+```bash
+dotnet build Workbench.slnx
 dotnet test Workbench.slnx
 ```
 
