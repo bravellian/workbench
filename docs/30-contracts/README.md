@@ -2,6 +2,9 @@
 
 APIs, CLI interfaces, schemas, and external contracts.
 
+Templates:
+- `docs/templates/contract.md`
+
 Current schemas:
 - `docs/30-contracts/workbench-config.schema.json`
 - `docs/30-contracts/work-item.schema.json`

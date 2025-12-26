@@ -412,6 +412,10 @@ Examples:
 - Plain text: `TASK-0042`
 - Markdown link: `[TASK-0042](/work/items/TASK-0042-add-promotion-workflow.md)`
 
+Doc cross-link rules:
+- ADRs in `/docs/40-decisions` must include a "Related specs" section with at least one link to a spec in `/docs/10-product` or `/docs/20-architecture`.
+- Specs referenced in `related.specs` must include a backlink to the work item ID (plain text or markdown link).
+
 ### Errors (must fail)
 - Config file does not conform to workbench-config.schema.json (WB010)
 - Missing required front matter fields (per work-item.schema.json)
@@ -421,6 +425,8 @@ Examples:
 - related.specs/related.adrs references to missing files
 - related.files references to missing files
 - related.files targets missing a backlink to the work item ID
+- ADRs missing a related spec link in their "Related specs" section
+- Specs referenced in related.specs missing a backlink to the work item ID
 - Work item file not under configured items/done directories
 - Broken local markdown links in any repo markdown file
 
