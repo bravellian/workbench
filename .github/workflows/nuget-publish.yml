@@ -121,8 +121,8 @@ jobs:
       - name: Restore
         run: dotnet restore src/Workbench/Workbench.csproj -r ${{ matrix.rid }}
 
-      - name: Publish AOT
-        run: dotnet publish src/Workbench/Workbench.csproj -c Release -r ${{ matrix.rid }} -o ./artifacts/aot/${{ matrix.rid }} -p:PublishAot=true -p:PublishTrimmed=true -p:SelfContained=true -p:PublishSingleFile=true -p:StripSymbols=true -p:Version=${{ needs.version.outputs.semver }} --no-restore
+      - name: Publish Executable
+        run: dotnet publish src/Workbench/Workbench.csproj -c Release -r ${{ matrix.rid }} -o ./artifacts/aot/${{ matrix.rid }} -p:SelfContained=true -p:PublishSingleFile=true -p:StripSymbols=true -p:Version=${{ needs.version.outputs.semver }} --no-restore --sc
 
       - name: Collect single-file binary
         shell: bash
