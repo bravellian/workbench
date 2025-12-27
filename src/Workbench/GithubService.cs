@@ -115,12 +115,11 @@ public static class GithubService
         if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
         {
             var segments = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length >= 4 && string.Equals(segments[2], "issues", StringComparison.OrdinalIgnoreCase))
+            if (segments.Length >= 4 &&
+                string.Equals(segments[2], "issues", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(segments[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
             {
-                if (int.TryParse(segments[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
-                {
-                    return new GithubIssueRef(new GithubRepoRef(uri.Host, segments[0], segments[1]), number);
-                }
+                return new GithubIssueRef(new GithubRepoRef(uri.Host, segments[0], segments[1]), number);
             }
             throw new InvalidOperationException($"Unsupported issue URL: {input}");
         }

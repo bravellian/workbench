@@ -4,14 +4,6 @@ using System.Collections;
 
 namespace Workbench;
 
-public sealed record DocSummaryResult(
-    int FilesUpdated,
-    int NotesAdded,
-    IList<string> UpdatedFiles,
-    IList<string> SkippedFiles,
-    IList<string> Errors,
-    IList<string> Warnings);
-
 public static class DocSummaryService
 {
     private const int MaxDiffChars = 6000;
@@ -63,7 +55,7 @@ public static class DocSummaryService
                 ? diff[^MaxDiffChars..]
                 : diff;
 
-            var summary = await client!.SummarizeAsync(trimmedDiff);
+            var summary = await client!.SummarizeAsync(trimmedDiff).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(summary))
             {
                 warnings.Add($"{normalized} (AI returned empty summary)");
@@ -124,7 +116,7 @@ public static class DocSummaryService
         var workbench = EnsureWorkbench(frontMatter!, out var changed);
         var notes = EnsureStringList(workbench, "changeNotes", out var notesChanged);
         var shortHash = diffHash[..8];
-        if (notes.Any(note => ExtractHash(note) == shortHash))
+        if (notes.Any(note => string.Equals(ExtractHash(note), shortHash, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }

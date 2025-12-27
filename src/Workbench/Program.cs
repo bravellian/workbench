@@ -1916,7 +1916,7 @@ docSummaryCommand.Options.Add(docSummaryStagedOption);
 docSummaryCommand.Options.Add(docSummaryPathOption);
 docSummaryCommand.Options.Add(docSummaryDryRunOption);
 docSummaryCommand.Options.Add(docSummaryUpdateIndexOption);
-docSummaryCommand.SetAction(parseResult =>
+docSummaryCommand.SetAction(async parseResult =>
 {
     try
     {
@@ -1943,14 +1943,12 @@ docSummaryCommand.SetAction(parseResult =>
             return;
         }
 
-        var result = DocSummaryService.SummarizeDocsAsync(
+        var result = await DocSummaryService.SummarizeDocsAsync(
                 repoRoot,
                 paths,
                 useStaged,
                 dryRun,
-                updateIndex)
-            .GetAwaiter()
-            .GetResult();
+                updateIndex).ConfigureAwait(false);
 
         if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {

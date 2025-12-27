@@ -46,7 +46,7 @@ public sealed class AiSummaryClient
             ?? Environment.GetEnvironmentVariable("OPENAI_MODEL")
             ?? "gpt-4o-mini";
         var maxChars = DefaultMaxSummaryChars;
-        if (int.TryParse(Environment.GetEnvironmentVariable("WORKBENCH_AI_SUMMARY_MAX_CHARS"), out var parsed))
+        if (int.TryParse(Environment.GetEnvironmentVariable("WORKBENCH_AI_SUMMARY_MAX_CHARS"), CultureInfo.InvariantCulture, out var parsed))
         {
             maxChars = Math.Clamp(parsed, 80, 600);
         }
@@ -54,11 +54,11 @@ public sealed class AiSummaryClient
         var instructions = Environment.GetEnvironmentVariable("WORKBENCH_AI_SUMMARY_INSTRUCTIONS")
             ?? "You summarize markdown doc changes for change logs. Respond in 1-2 sentences, plain text only.";
 
-        AIAgent agent = new OpenAIClient(apiKey)
+        AIAgent aiAgent = new OpenAIClient(apiKey)
             .GetChatClient(model)
             .CreateAIAgent(instructions: instructions, name: "WorkbenchSummarizer");
 
-        client = new AiSummaryClient(agent, maxChars);
+        client = new AiSummaryClient(aiAgent, maxChars);
         return true;
     }
 
@@ -66,13 +66,13 @@ public sealed class AiSummaryClient
     {
         var prompt = $"Summarize the following git diff for a markdown document. " +
                      $"Return 1-2 sentences, no bullets, no markdown.\n\n{diffText}";
-        var summary = await agent.RunAsync(prompt);
-        if (string.IsNullOrWhiteSpace(summary))
+        AgentRunResponse? summary = await agent.RunAsync(prompt).ConfigureAwait(false);
+        if (summary == null)
         {
             return null;
         }
 
-        var normalized = string.Join(' ', summary.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)).Trim();
+        var normalized = string.Join(' ', summary.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)).Trim();
         if (normalized.Length > maxSummaryChars)
         {
             normalized = normalized[..maxSummaryChars].TrimEnd() + "…";
