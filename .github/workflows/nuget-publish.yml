@@ -133,7 +133,7 @@ jobs:
             ext=".exe"
           fi
           src="./artifacts/aot/${{ matrix.rid }}/Workbench${ext}"
-          dest="./artifacts/aot-binaries/workbench-${{ matrix.rid }}${ext}"
+          dest="./artifacts/aot-binaries/workbench-${{ needs.version.outputs.semver }}-${{ matrix.rid }}${ext}"
           mkdir -p ./artifacts/aot-binaries
           if [[ ! -f "$src" ]]; then
             echo "Expected binary not found at $src"
@@ -145,7 +145,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: workbench-aot-bin-${{ matrix.rid }}
-          path: ./artifacts/aot-binaries/workbench-${{ matrix.rid }}*
+          path: ./artifacts/aot-binaries/workbench-${{ needs.version.outputs.semver }}-${{ matrix.rid }}*
 
   release:
     name: Publish release

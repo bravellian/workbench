@@ -152,7 +152,7 @@ public static class GithubService
     {
         EnsureAuthenticated(repoRoot, issueRef.Repo.Host);
 
-        const string query = """
+        const string Query = """
             query($owner: String!, $name: String!, $number: Int!) {
               repository(owner: $owner, name: $name) {
                 issue(number: $number) {
@@ -199,7 +199,7 @@ public static class GithubService
         args.AddRange(new[]
         {
             "graphql",
-            "-f", $"query={query}",
+            "-f", $"query={Query}",
             "-f", $"owner={issueRef.Repo.Owner}",
             "-f", $"name={issueRef.Repo.Repo}",
             "-F", $"number={issueRef.Number.ToString(CultureInfo.InvariantCulture)}",

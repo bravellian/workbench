@@ -2,12 +2,11 @@ namespace Workbench.IntegrationTests
 {
     internal static class WorkbenchCli
     {
-        private static readonly Lazy<string> DllPath = new(BuildWorkbenchCli);
+        private static readonly Lazy<string> dllPath = new(BuildWorkbenchCli);
 
         public static CommandResult Run(string workingDirectory, params string[] args)
         {
-            var dllPath = DllPath.Value;
-            var allArgs = new List<string> { dllPath };
+            var allArgs = new List<string> { WorkbenchCli.dllPath.Value };
             allArgs.AddRange(args);
             return ProcessRunner.Run(workingDirectory, "dotnet", allArgs.ToArray());
         }
@@ -22,12 +21,12 @@ namespace Workbench.IntegrationTests
                 throw new InvalidOperationException($"dotnet build failed: {buildResult.StdErr}\n{buildResult.StdOut}");
             }
 
-            var dllPath = System.IO.Path.Combine(repoRoot, "src", "Workbench", "bin", "Debug", "net10.0", "Workbench.dll");
-            if (!File.Exists(dllPath))
+            var localDllPath = System.IO.Path.Combine(repoRoot, "src", "Workbench", "bin", "Debug", "net10.0", "Workbench.dll");
+            if (!File.Exists(localDllPath))
             {
-                throw new FileNotFoundException($"Workbench CLI not found at {dllPath}.");
+                throw new FileNotFoundException($"Workbench CLI not found at {localDllPath}.");
             }
-            return dllPath;
+            return localDllPath;
         }
 
         private static string FindRepoRoot()
