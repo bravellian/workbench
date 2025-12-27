@@ -26,10 +26,7 @@ public sealed record WorkbenchConfig(
         try
         {
             var json = File.ReadAllText(configPath);
-            var config = JsonSerializer.Deserialize<WorkbenchConfig>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var config = JsonSerializer.Deserialize(json, WorkbenchJsonContext.Default.WorkbenchConfig);
             if (config is null)
             {
                 error = "Failed to parse config.";

@@ -1,8 +1,21 @@
 {
   "version": 2,
-  "dgSpecHash": "gk4i8BtIpZY=",
+  "dgSpecHash": "gX+R6BKcx5w=",
   "success": true,
   "projectFilePath": "/Users/samuel/src/bravellian/workbench/src/Workbench/Workbench.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "/Users/samuel/.nuget/packages/humanizer.core/2.14.1/humanizer.core.2.14.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/json.more.net/2.1.1/json.more.net.2.1.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/jsonpointer.net/5.3.1/jsonpointer.net.5.3.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/jsonschema.net/7.3.2/jsonschema.net.7.3.2.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.dotnet.ilcompiler/10.0.1/microsoft.dotnet.ilcompiler.10.0.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.net.illink.tasks/10.0.1/microsoft.net.illink.tasks.10.0.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/runtime.osx-arm64.microsoft.dotnet.ilcompiler/10.0.1/runtime.osx-arm64.microsoft.dotnet.ilcompiler.10.0.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/system.commandline/2.0.0-beta4.22272.1/system.commandline.2.0.0-beta4.22272.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.netcore.app.runtime.osx-arm64/10.0.1/microsoft.netcore.app.runtime.osx-arm64.10.0.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.aspnetcore.app.runtime.osx-arm64/10.0.1/microsoft.aspnetcore.app.runtime.osx-arm64.10.0.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.netcore.app.runtime.nativeaot.osx-arm64/10.0.1/microsoft.netcore.app.runtime.nativeaot.osx-arm64.10.0.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/runtime.osx-arm64.microsoft.dotnet.ilcompiler/10.0.1/runtime.osx-arm64.microsoft.dotnet.ilcompiler.10.0.1.nupkg.sha512"
+  ],
   "logs": []
 }

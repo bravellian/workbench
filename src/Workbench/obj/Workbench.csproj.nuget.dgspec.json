@@ -5,10 +5,10 @@
   },
   "projects": {
     "/Users/samuel/src/bravellian/workbench/src/Workbench/Workbench.csproj": {
-      "version": "1.0.0",
+      "version": "0.1.0",
       "restore": {
         "projectUniqueName": "/Users/samuel/src/bravellian/workbench/src/Workbench/Workbench.csproj",
-        "projectName": "Workbench",
+        "projectName": "Bravellian.Workbench",
         "projectPath": "/Users/samuel/src/bravellian/workbench/src/Workbench/Workbench.csproj",
         "packagesPath": "/Users/samuel/.nuget/packages/",
         "outputPath": "/Users/samuel/src/bravellian/workbench/src/Workbench/obj/",
@@ -43,6 +43,28 @@
       "frameworks": {
         "net10.0": {
           "targetAlias": "net10.0",
+          "dependencies": {
+            "JsonSchema.Net": {
+              "target": "Package",
+              "version": "[7.3.2, )"
+            },
+            "Microsoft.DotNet.ILCompiler": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[10.0.1, )",
+              "autoReferenced": true
+            },
+            "Microsoft.NET.ILLink.Tasks": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[10.0.1, )",
+              "autoReferenced": true
+            },
+            "System.CommandLine": {
+              "target": "Package",
+              "version": "[2.0.0-beta4.22272.1, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
@@ -54,6 +76,24 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Runtime.osx-arm64",
+              "version": "[10.0.1, 10.0.1]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Runtime.NativeAOT.osx-arm64",
+              "version": "[10.0.1, 10.0.1]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Runtime.osx-arm64",
+              "version": "[10.0.1, 10.0.1]"
+            },
+            {
+              "name": "runtime.osx-arm64.Microsoft.DotNet.ILCompiler",
+              "version": "[10.0.1, 10.0.1]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
@@ -334,6 +374,11 @@
             "System.Xml.XPath": "(,4.3.32767]",
             "System.Xml.XPath.XDocument": "(,5.0.32767]"
           }
+        }
+      },
+      "runtimes": {
+        "osx-arm64": {
+          "#import": []
         }
       }
     }

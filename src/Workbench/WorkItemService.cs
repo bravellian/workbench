@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using YamlDotNet.Serialization;
+using System.Linq;
 
 namespace Workbench;
 
@@ -56,12 +56,10 @@ public static class WorkItemService
             frontMatter.Data["owner"] = owner;
         }
 
-        if (frontMatter.Data.TryGetValue("related", out var relatedObj) && relatedObj is Dictionary<object, object> related)
+        var related = GetRelatedMap(frontMatter.Data);
+        if (related is not null)
         {
-            if (!related.ContainsKey("files"))
-            {
-                related["files"] = new List<string>();
-            }
+            EnsureList(related, "files");
         }
 
         frontMatter = NormalizeFrontMatter(frontMatter);
@@ -209,22 +207,46 @@ public static class WorkItemService
             throw new InvalidOperationException($"Front matter error: {error}");
         }
 
-        if (!frontMatter!.Data.TryGetValue("related", out var relatedObj) || relatedObj is not Dictionary<object, object> related)
+        var related = GetRelatedMap(frontMatter!.Data);
+        if (related is null)
         {
             throw new InvalidOperationException("Missing related section.");
         }
 
-        if (!related.TryGetValue("prs", out var prsObj) || prsObj is not IList<object> prs)
-        {
-            prs = new List<object>();
-            related["prs"] = prs;
-        }
+        var prs = EnsureList(related, "prs");
         if (!prs.OfType<string>().Any(link => link.Equals(prUrl, StringComparison.OrdinalIgnoreCase)))
         {
             prs.Add(prUrl);
         }
 
         File.WriteAllText(path, frontMatter.Serialize());
+    }
+
+    public static bool AddRelatedLink(string path, string key, string link, bool apply = true)
+    {
+        var content = File.ReadAllText(path);
+        if (!FrontMatter.TryParse(content, out var frontMatter, out var error))
+        {
+            throw new InvalidOperationException($"Front matter error: {error}");
+        }
+
+        var related = GetRelatedMap(frontMatter!.Data);
+        if (related is null)
+        {
+            throw new InvalidOperationException("Missing related section.");
+        }
+
+        var list = EnsureList(related, key);
+        if (!list.OfType<string>().Any(entry => entry.Equals(link, StringComparison.OrdinalIgnoreCase)))
+        {
+            list.Add(link);
+            if (apply)
+            {
+                File.WriteAllText(path, frontMatter.Serialize());
+            }
+            return true;
+        }
+        return false;
     }
 
     public static string GetItemPathById(string repoRoot, WorkbenchConfig config, string id)
@@ -247,10 +269,7 @@ public static class WorkItemService
 
     private static FrontMatter NormalizeFrontMatter(FrontMatter frontMatter)
     {
-        var serializer = new SerializerBuilder().Build();
-        var yaml = serializer.Serialize(frontMatter.Data).TrimEnd('\n');
-        var body = frontMatter.Body;
-        var normalized = $"---\n{yaml}\n---\n\n{body}".TrimEnd() + "\n";
+        var normalized = frontMatter.Serialize();
         if (!FrontMatter.TryParse(normalized, out var updated, out _))
         {
             return frontMatter;
@@ -392,9 +411,52 @@ public static class WorkItemService
         return new List<string>();
     }
 
+    private static Dictionary<string, object?>? GetRelatedMap(Dictionary<string, object?> data)
+    {
+        if (!data.TryGetValue("related", out var relatedObj) || relatedObj is null)
+        {
+            return null;
+        }
+        if (relatedObj is Dictionary<string, object?> typed)
+        {
+            return typed;
+        }
+        if (relatedObj is Dictionary<object, object> legacy)
+        {
+            return legacy.ToDictionary(
+                kvp => kvp.Key.ToString() ?? string.Empty,
+                kvp => (object?)kvp.Value);
+        }
+        return null;
+    }
+
+    private static List<object?> EnsureList(Dictionary<string, object?> data, string key)
+    {
+        if (!data.TryGetValue(key, out var value) || value is null)
+        {
+            var empty = new List<object?>();
+            data[key] = empty;
+            return empty;
+        }
+        if (value is List<object?> list)
+        {
+            return list;
+        }
+        if (value is IEnumerable<object> legacyList)
+        {
+            var converted = legacyList.Select(item => (object?)item).ToList();
+            data[key] = converted;
+            return converted;
+        }
+        var reset = new List<object?>();
+        data[key] = reset;
+        return reset;
+    }
+
     private static RelatedLinks GetRelated(Dictionary<string, object?> data)
     {
-        if (!data.TryGetValue("related", out var relatedObj) || relatedObj is not Dictionary<object, object> related)
+        var related = GetRelatedMap(data);
+        if (related is null)
         {
             return new RelatedLinks(new(), new(), new(), new(), new());
         }
@@ -408,6 +470,10 @@ public static class WorkItemService
             if (value is IEnumerable<object> list)
             {
                 return list.Select(item => item?.ToString() ?? string.Empty).Where(item => item.Length > 0).ToList();
+            }
+            if (value is IEnumerable<object?> nullableList)
+            {
+                return nullableList.Select(item => item?.ToString() ?? string.Empty).Where(item => item.Length > 0).ToList();
             }
             return new List<string>();
         }

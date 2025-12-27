@@ -1,20 +1,509 @@
 {
   "version": 3,
   "targets": {
-    "net10.0": {}
+    "net10.0": {
+      "Humanizer.Core/2.14.1": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/Humanizer.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Humanizer.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Json.More.Net/2.1.1": {
+        "type": "package",
+        "compile": {
+          "lib/net9.0/Json.More.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/Json.More.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "JsonPointer.Net/5.3.1": {
+        "type": "package",
+        "dependencies": {
+          "Humanizer.Core": "2.14.1",
+          "Json.More.Net": "2.1.1"
+        },
+        "compile": {
+          "lib/net9.0/JsonPointer.Net.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/JsonPointer.Net.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "JsonSchema.Net/7.3.2": {
+        "type": "package",
+        "dependencies": {
+          "JsonPointer.Net": "5.3.1"
+        },
+        "compile": {
+          "lib/net9.0/JsonSchema.Net.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/JsonSchema.Net.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "Microsoft.DotNet.ILCompiler/10.0.1": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.DotNet.ILCompiler.props": {}
+        }
+      },
+      "Microsoft.NET.ILLink.Tasks/10.0.1": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.NET.ILLink.Tasks.props": {}
+        }
+      },
+      "System.CommandLine/2.0.0-beta4.22272.1": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/System.CommandLine.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/System.CommandLine.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "resource": {
+          "lib/net6.0/cs/System.CommandLine.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/net6.0/de/System.CommandLine.resources.dll": {
+            "locale": "de"
+          },
+          "lib/net6.0/es/System.CommandLine.resources.dll": {
+            "locale": "es"
+          },
+          "lib/net6.0/fr/System.CommandLine.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/net6.0/it/System.CommandLine.resources.dll": {
+            "locale": "it"
+          },
+          "lib/net6.0/ja/System.CommandLine.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/net6.0/ko/System.CommandLine.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/net6.0/pl/System.CommandLine.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/net6.0/pt-BR/System.CommandLine.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/net6.0/ru/System.CommandLine.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/net6.0/tr/System.CommandLine.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/net6.0/zh-Hans/System.CommandLine.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/net6.0/zh-Hant/System.CommandLine.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      }
+    },
+    "net10.0/osx-arm64": {
+      "Humanizer.Core/2.14.1": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/Humanizer.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Humanizer.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Json.More.Net/2.1.1": {
+        "type": "package",
+        "compile": {
+          "lib/net9.0/Json.More.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/Json.More.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "JsonPointer.Net/5.3.1": {
+        "type": "package",
+        "dependencies": {
+          "Humanizer.Core": "2.14.1",
+          "Json.More.Net": "2.1.1"
+        },
+        "compile": {
+          "lib/net9.0/JsonPointer.Net.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/JsonPointer.Net.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "JsonSchema.Net/7.3.2": {
+        "type": "package",
+        "dependencies": {
+          "JsonPointer.Net": "5.3.1"
+        },
+        "compile": {
+          "lib/net9.0/JsonSchema.Net.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/JsonSchema.Net.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "Microsoft.DotNet.ILCompiler/10.0.1": {
+        "type": "package",
+        "dependencies": {
+          "runtime.osx-arm64.Microsoft.DotNet.ILCompiler": "10.0.1"
+        },
+        "build": {
+          "build/Microsoft.DotNet.ILCompiler.props": {}
+        }
+      },
+      "Microsoft.NET.ILLink.Tasks/10.0.1": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.NET.ILLink.Tasks.props": {}
+        }
+      },
+      "runtime.osx-arm64.Microsoft.DotNet.ILCompiler/10.0.1": {
+        "type": "package"
+      },
+      "System.CommandLine/2.0.0-beta4.22272.1": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/System.CommandLine.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/System.CommandLine.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "resource": {
+          "lib/net6.0/cs/System.CommandLine.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/net6.0/de/System.CommandLine.resources.dll": {
+            "locale": "de"
+          },
+          "lib/net6.0/es/System.CommandLine.resources.dll": {
+            "locale": "es"
+          },
+          "lib/net6.0/fr/System.CommandLine.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/net6.0/it/System.CommandLine.resources.dll": {
+            "locale": "it"
+          },
+          "lib/net6.0/ja/System.CommandLine.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/net6.0/ko/System.CommandLine.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/net6.0/pl/System.CommandLine.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/net6.0/pt-BR/System.CommandLine.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/net6.0/ru/System.CommandLine.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/net6.0/tr/System.CommandLine.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/net6.0/zh-Hans/System.CommandLine.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/net6.0/zh-Hant/System.CommandLine.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      }
+    }
   },
-  "libraries": {},
+  "libraries": {
+    "Humanizer.Core/2.14.1": {
+      "sha512": "lQKvtaTDOXnoVJ20ibTuSIOf2i0uO0MPbDhd1jm238I+U/2ZnRENj0cktKZhtchBMtCUSRQ5v4xBCUbKNmyVMw==",
+      "type": "package",
+      "path": "humanizer.core/2.14.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "humanizer.core.2.14.1.nupkg.sha512",
+        "humanizer.core.nuspec",
+        "lib/net6.0/Humanizer.dll",
+        "lib/net6.0/Humanizer.xml",
+        "lib/netstandard1.0/Humanizer.dll",
+        "lib/netstandard1.0/Humanizer.xml",
+        "lib/netstandard2.0/Humanizer.dll",
+        "lib/netstandard2.0/Humanizer.xml",
+        "logo.png"
+      ]
+    },
+    "Json.More.Net/2.1.1": {
+      "sha512": "ZXAKl2VsdnIZeUo1PFII3Oi1m1L4YQjEyDjygHfHln5vgsjgIo749X6xWkv7qFYp8RROES+vOEfDcvvoVgs8kA==",
+      "type": "package",
+      "path": "json.more.net/2.1.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE",
+        "README.md",
+        "json-logo-256.png",
+        "json.more.net.2.1.1.nupkg.sha512",
+        "json.more.net.nuspec",
+        "lib/net8.0/Json.More.dll",
+        "lib/net8.0/Json.More.xml",
+        "lib/net9.0/Json.More.dll",
+        "lib/net9.0/Json.More.xml",
+        "lib/netstandard2.0/Json.More.dll",
+        "lib/netstandard2.0/Json.More.xml"
+      ]
+    },
+    "JsonPointer.Net/5.3.1": {
+      "sha512": "3e2OJjU0OaE26XC/klgxbJuXvteFWTDJIJv0ITYWcJEoskq7jzUwPSC1s0iz4wPPQnfN7vwwFmg2gJfwRAPwgw==",
+      "type": "package",
+      "path": "jsonpointer.net/5.3.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE",
+        "README.md",
+        "json-logo-256.png",
+        "jsonpointer.net.5.3.1.nupkg.sha512",
+        "jsonpointer.net.nuspec",
+        "lib/net8.0/JsonPointer.Net.dll",
+        "lib/net8.0/JsonPointer.Net.xml",
+        "lib/net9.0/JsonPointer.Net.dll",
+        "lib/net9.0/JsonPointer.Net.xml",
+        "lib/netstandard2.0/JsonPointer.Net.dll",
+        "lib/netstandard2.0/JsonPointer.Net.xml"
+      ]
+    },
+    "JsonSchema.Net/7.3.2": {
+      "sha512": "x+xwg6GyKFCkM5/i3MKvJtYcOH3vPFAqZhxnOM5x/0hvewOccBACNOWeei75U7gPa8kYRfpXk33GG67q28D86g==",
+      "type": "package",
+      "path": "jsonschema.net/7.3.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE",
+        "README.md",
+        "json-logo-256.png",
+        "jsonschema.net.7.3.2.nupkg.sha512",
+        "jsonschema.net.nuspec",
+        "lib/net8.0/JsonSchema.Net.dll",
+        "lib/net8.0/JsonSchema.Net.pdb",
+        "lib/net8.0/JsonSchema.Net.xml",
+        "lib/net9.0/JsonSchema.Net.dll",
+        "lib/net9.0/JsonSchema.Net.pdb",
+        "lib/net9.0/JsonSchema.Net.xml",
+        "lib/netstandard2.0/JsonSchema.Net.dll",
+        "lib/netstandard2.0/JsonSchema.Net.pdb",
+        "lib/netstandard2.0/JsonSchema.Net.xml"
+      ]
+    },
+    "Microsoft.DotNet.ILCompiler/10.0.1": {
+      "sha512": "339VHcUMA2iDrkLGaqjSwn25S9lmus/+Iqg5Hz2LDPhsX5a5GbdQZ2f/f6HMz/uGGWtUGpsusqUvW5L3fx36VA==",
+      "type": "package",
+      "path": "microsoft.dotnet.ilcompiler/10.0.1",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "THIRD-PARTY-NOTICES.TXT",
+        "build/BuildFrameworkNativeObjects.proj",
+        "build/Microsoft.DotNet.ILCompiler.SingleEntry.targets",
+        "build/Microsoft.DotNet.ILCompiler.props",
+        "build/Microsoft.NETCore.Native.Publish.targets",
+        "build/Microsoft.NETCore.Native.Unix.targets",
+        "build/Microsoft.NETCore.Native.Windows.targets",
+        "build/Microsoft.NETCore.Native.targets",
+        "build/NativeAOT.natstepfilter",
+        "build/NativeAOT.natvis",
+        "build/WindowsAPIs.txt",
+        "build/findvcvarsall.bat",
+        "microsoft.dotnet.ilcompiler.10.0.1.nupkg.sha512",
+        "microsoft.dotnet.ilcompiler.nuspec",
+        "runtime.json",
+        "tools/netstandard/ILCompiler.Build.Tasks.deps.json",
+        "tools/netstandard/ILCompiler.Build.Tasks.dll"
+      ]
+    },
+    "Microsoft.NET.ILLink.Tasks/10.0.1": {
+      "sha512": "ISahzLHsHY7vrwqr2p1YWZ+gsxoBRtH7gWRDK8fDUst9pp2He0GiesaqEfeX0V8QMCJM3eNEHGGpnIcPjFo2NQ==",
+      "type": "package",
+      "path": "microsoft.net.illink.tasks/10.0.1",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "Sdk/Sdk.props",
+        "THIRD-PARTY-NOTICES.TXT",
+        "analyzers/dotnet/cs/ILLink.CodeFixProvider.dll",
+        "analyzers/dotnet/cs/ILLink.RoslynAnalyzer.dll",
+        "build/Microsoft.NET.ILLink.Analyzers.props",
+        "build/Microsoft.NET.ILLink.Tasks.props",
+        "build/Microsoft.NET.ILLink.targets",
+        "microsoft.net.illink.tasks.10.0.1.nupkg.sha512",
+        "microsoft.net.illink.tasks.nuspec",
+        "tools/net/ILLink.Tasks.deps.json",
+        "tools/net/ILLink.Tasks.dll",
+        "tools/net/Mono.Cecil.Mdb.dll",
+        "tools/net/Mono.Cecil.Pdb.dll",
+        "tools/net/Mono.Cecil.Rocks.dll",
+        "tools/net/Mono.Cecil.dll",
+        "tools/net/Sdk/Sdk.props",
+        "tools/net/build/Microsoft.NET.ILLink.Analyzers.props",
+        "tools/net/build/Microsoft.NET.ILLink.Tasks.props",
+        "tools/net/build/Microsoft.NET.ILLink.targets",
+        "tools/net/illink.deps.json",
+        "tools/net/illink.dll",
+        "tools/net/illink.runtimeconfig.json",
+        "tools/netframework/ILLink.Tasks.dll",
+        "tools/netframework/ILLink.Tasks.dll.config",
+        "tools/netframework/Mono.Cecil.Mdb.dll",
+        "tools/netframework/Mono.Cecil.Pdb.dll",
+        "tools/netframework/Mono.Cecil.Rocks.dll",
+        "tools/netframework/Mono.Cecil.dll",
+        "tools/netframework/Sdk/Sdk.props",
+        "tools/netframework/System.Buffers.dll",
+        "tools/netframework/System.Collections.Immutable.dll",
+        "tools/netframework/System.Memory.dll",
+        "tools/netframework/System.Numerics.Vectors.dll",
+        "tools/netframework/System.Reflection.Metadata.dll",
+        "tools/netframework/System.Runtime.CompilerServices.Unsafe.dll",
+        "tools/netframework/build/Microsoft.NET.ILLink.Analyzers.props",
+        "tools/netframework/build/Microsoft.NET.ILLink.Tasks.props",
+        "tools/netframework/build/Microsoft.NET.ILLink.targets",
+        "useSharedDesignerContext.txt"
+      ]
+    },
+    "runtime.osx-arm64.Microsoft.DotNet.ILCompiler/10.0.1": {
+      "sha512": "3pojXIDFSGundnTb5Y5KrnR844XvHTUvwUy2JYBILsOdEHtO5b2/o1J8f75TNR4c82SBDY7PKHDs1N5VjMx31Q==",
+      "type": "package",
+      "path": "runtime.osx-arm64.microsoft.dotnet.ilcompiler/10.0.1",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "THIRD-PARTY-NOTICES.TXT",
+        "runtime.osx-arm64.microsoft.dotnet.ilcompiler.10.0.1.nupkg.sha512",
+        "runtime.osx-arm64.microsoft.dotnet.ilcompiler.nuspec",
+        "tools/ilc",
+        "tools/libclrjit_universal_arm64_arm64.dylib",
+        "tools/libclrjit_universal_arm_arm64.dylib",
+        "tools/libclrjit_unix_x64_arm64.dylib",
+        "tools/libclrjit_win_x64_arm64.dylib",
+        "tools/libclrjit_win_x86_arm64.dylib",
+        "tools/libjitinterface_arm64.dylib"
+      ]
+    },
+    "System.CommandLine/2.0.0-beta4.22272.1": {
+      "sha512": "1uqED/q2H0kKoLJ4+hI2iPSBSEdTuhfCYADeJrAqERmiGQ2NNacYKRNEQ+gFbU4glgVyK8rxI+ZOe1onEtr/Pg==",
+      "type": "package",
+      "path": "system.commandline/2.0.0-beta4.22272.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "lib/net6.0/System.CommandLine.dll",
+        "lib/net6.0/System.CommandLine.pdb",
+        "lib/net6.0/System.CommandLine.xml",
+        "lib/net6.0/cs/System.CommandLine.resources.dll",
+        "lib/net6.0/de/System.CommandLine.resources.dll",
+        "lib/net6.0/es/System.CommandLine.resources.dll",
+        "lib/net6.0/fr/System.CommandLine.resources.dll",
+        "lib/net6.0/it/System.CommandLine.resources.dll",
+        "lib/net6.0/ja/System.CommandLine.resources.dll",
+        "lib/net6.0/ko/System.CommandLine.resources.dll",
+        "lib/net6.0/pl/System.CommandLine.resources.dll",
+        "lib/net6.0/pt-BR/System.CommandLine.resources.dll",
+        "lib/net6.0/ru/System.CommandLine.resources.dll",
+        "lib/net6.0/tr/System.CommandLine.resources.dll",
+        "lib/net6.0/zh-Hans/System.CommandLine.resources.dll",
+        "lib/net6.0/zh-Hant/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/System.CommandLine.dll",
+        "lib/netstandard2.0/System.CommandLine.pdb",
+        "lib/netstandard2.0/System.CommandLine.xml",
+        "lib/netstandard2.0/cs/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/de/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/es/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/fr/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/it/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/ja/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/ko/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/pl/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/pt-BR/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/ru/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/tr/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/zh-Hans/System.CommandLine.resources.dll",
+        "lib/netstandard2.0/zh-Hant/System.CommandLine.resources.dll",
+        "system.commandline.2.0.0-beta4.22272.1.nupkg.sha512",
+        "system.commandline.nuspec"
+      ]
+    }
+  },
   "projectFileDependencyGroups": {
-    "net10.0": []
+    "net10.0": [
+      "JsonSchema.Net >= 7.3.2",
+      "Microsoft.DotNet.ILCompiler >= 10.0.1",
+      "Microsoft.NET.ILLink.Tasks >= 10.0.1",
+      "System.CommandLine >= 2.0.0-beta4.22272.1"
+    ]
   },
   "packageFolders": {
     "/Users/samuel/.nuget/packages/": {}
   },
   "project": {
-    "version": "1.0.0",
+    "version": "0.1.0",
     "restore": {
       "projectUniqueName": "/Users/samuel/src/bravellian/workbench/src/Workbench/Workbench.csproj",
-      "projectName": "Workbench",
+      "projectName": "Bravellian.Workbench",
       "projectPath": "/Users/samuel/src/bravellian/workbench/src/Workbench/Workbench.csproj",
       "packagesPath": "/Users/samuel/.nuget/packages/",
       "outputPath": "/Users/samuel/src/bravellian/workbench/src/Workbench/obj/",
@@ -49,6 +538,28 @@
     "frameworks": {
       "net10.0": {
         "targetAlias": "net10.0",
+        "dependencies": {
+          "JsonSchema.Net": {
+            "target": "Package",
+            "version": "[7.3.2, )"
+          },
+          "Microsoft.DotNet.ILCompiler": {
+            "suppressParent": "All",
+            "target": "Package",
+            "version": "[10.0.1, )",
+            "autoReferenced": true
+          },
+          "Microsoft.NET.ILLink.Tasks": {
+            "suppressParent": "All",
+            "target": "Package",
+            "version": "[10.0.1, )",
+            "autoReferenced": true
+          },
+          "System.CommandLine": {
+            "target": "Package",
+            "version": "[2.0.0-beta4.22272.1, )"
+          }
+        },
         "imports": [
           "net461",
           "net462",
@@ -60,6 +571,24 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Runtime.osx-arm64",
+            "version": "[10.0.1, 10.0.1]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Runtime.NativeAOT.osx-arm64",
+            "version": "[10.0.1, 10.0.1]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Runtime.osx-arm64",
+            "version": "[10.0.1, 10.0.1]"
+          },
+          {
+            "name": "runtime.osx-arm64.Microsoft.DotNet.ILCompiler",
+            "version": "[10.0.1, 10.0.1]"
+          }
+        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
@@ -340,6 +869,11 @@
           "System.Xml.XPath": "(,4.3.32767]",
           "System.Xml.XPath.XDocument": "(,5.0.32767]"
         }
+      }
+    },
+    "runtimes": {
+      "osx-arm64": {
+        "#import": []
       }
     }
   }

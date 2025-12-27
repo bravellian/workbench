@@ -19,8 +19,15 @@ public static class SchemaValidationService
     public static List<string> ValidateFrontMatter(string repoRoot, string itemPath, Dictionary<string, object?> data)
     {
         var schemaPath = Path.Combine(repoRoot, "docs", "30-contracts", "work-item.schema.json");
-        var json = JsonSerializer.Serialize(data);
+        var json = JsonWriter.Serialize(data, indented: false);
         return ValidateJsonAgainstSchema(json, schemaPath, itemPath, jsonIsContent: true);
+    }
+
+    public static List<string> ValidateDocFrontMatter(string repoRoot, string docPath, Dictionary<string, object?> data)
+    {
+        var schemaPath = Path.Combine(repoRoot, "docs", "30-contracts", "doc.schema.json");
+        var json = JsonWriter.Serialize(data, indented: false);
+        return ValidateJsonAgainstSchema(json, schemaPath, docPath, jsonIsContent: true);
     }
 
     private static List<string> ValidateJsonAgainstSchema(

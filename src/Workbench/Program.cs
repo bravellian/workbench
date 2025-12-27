@@ -1,5 +1,7 @@
 using System.CommandLine;
+using System.CommandLine.Invocation;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Workbench;
 
 static string ResolveRepo(string? repoArg)
@@ -20,11 +22,35 @@ static string ResolveFormat(string formatArg)
     return string.IsNullOrWhiteSpace(envFormat) ? formatArg : envFormat;
 }
 
-static void WriteJson(object payload)
+static void WriteJson<T>(T payload, JsonTypeInfo<T> typeInfo)
 {
-    var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
-    Console.WriteLine(json);
+    Console.WriteLine(JsonSerializer.Serialize(payload, typeInfo));
 }
+
+static WorkItemPayload ItemToPayload(WorkItem item, bool includeBody = false)
+{
+    return new WorkItemPayload(
+        item.Id,
+        item.Type,
+        item.Status,
+        item.Title,
+        item.Priority,
+        item.Owner,
+        item.Created,
+        item.Updated,
+        item.Tags,
+        new RelatedLinksPayload(
+            item.Related.Specs,
+            item.Related.Adrs,
+            item.Related.Files,
+            item.Related.Prs,
+            item.Related.Issues),
+        item.Slug,
+        item.Path,
+        includeBody ? item.Body : null);
+}
+
+static void SetExitCode(int code) => Environment.ExitCode = code;
 
 static string ApplyPattern(string pattern, WorkItem item)
 {
@@ -79,7 +105,7 @@ versionCommand.SetHandler(() =>
 {
     var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0";
     Console.WriteLine(version);
-    return 0;
+    SetExitCode(0);
 });
 root.AddCommand(versionCommand);
 
@@ -101,7 +127,7 @@ doctorCommand.SetHandler((string? repo, string format) =>
             config.Paths.TemplatesDir
         };
         var missing = paths.Where(p => !Directory.Exists(Path.Combine(repoRoot, p))).ToList();
-        var checks = new List<object>();
+        var checks = new List<DoctorCheck>();
         var hasError = configError is not null || schemaErrors.Count > 0;
         var hasWarnings = false;
 
@@ -110,70 +136,143 @@ doctorCommand.SetHandler((string? repo, string format) =>
             var gitResult = GitService.Run(repoRoot, "--version");
             if (gitResult.ExitCode == 0)
             {
-                checks.Add(new { name = "git", status = "ok", details = new { version = gitResult.StdOut } });
+                checks.Add(new DoctorCheck(
+                    "git",
+                    "ok",
+                    new DoctorCheckDetails(
+                        Version: gitResult.StdOut,
+                        Error: null,
+                        Reason: null,
+                        Path: null,
+                        Missing: null,
+                        SchemaErrors: null)));
             }
             else
             {
-                checks.Add(new { name = "git", status = "warn", details = new { error = gitResult.StdErr } });
+                checks.Add(new DoctorCheck(
+                    "git",
+                    "warn",
+                    new DoctorCheckDetails(
+                        Version: null,
+                        Error: gitResult.StdErr,
+                        Reason: null,
+                        Path: null,
+                        Missing: null,
+                        SchemaErrors: null)));
                 hasWarnings = true;
             }
         }
         catch (Exception)
         {
-            checks.Add(new { name = "git", status = "warn", details = new { error = "git not installed or not on PATH." } });
+            checks.Add(new DoctorCheck(
+                "git",
+                "warn",
+                new DoctorCheckDetails(
+                    Version: null,
+                    Error: "git not installed or not on PATH.",
+                    Reason: null,
+                    Path: null,
+                    Missing: null,
+                    SchemaErrors: null)));
             hasWarnings = true;
         }
 
-        checks.Add(new { name = "repo", status = "ok", details = new { path = repoRoot } });
+        checks.Add(new DoctorCheck(
+            "repo",
+            "ok",
+            new DoctorCheckDetails(
+                Version: null,
+                Error: null,
+                Reason: null,
+                Path: repoRoot,
+                Missing: null,
+                SchemaErrors: null)));
 
         if (File.Exists(configPath) && configError is null && schemaErrors.Count == 0)
         {
-            checks.Add(new { name = "config", status = "ok", details = new { path = configPath } });
+            checks.Add(new DoctorCheck(
+                "config",
+                "ok",
+                new DoctorCheckDetails(
+                    Version: null,
+                    Error: null,
+                    Reason: null,
+                    Path: configPath,
+                    Missing: null,
+                    SchemaErrors: null)));
         }
         else
         {
-            var details = new
-            {
-                path = configPath,
-                error = configError,
-                schemaErrors
-            };
-            checks.Add(new { name = "config", status = "warn", details });
+            checks.Add(new DoctorCheck(
+                "config",
+                "warn",
+                new DoctorCheckDetails(
+                    Version: null,
+                    Error: configError,
+                    Reason: null,
+                    Path: configPath,
+                    Missing: null,
+                    SchemaErrors: schemaErrors)));
             hasWarnings = true;
         }
 
         if (missing.Count == 0)
         {
-            checks.Add(new { name = "paths", status = "ok" });
+            checks.Add(new DoctorCheck(
+                "paths",
+                "ok",
+                null));
         }
         else
         {
-            checks.Add(new { name = "paths", status = "warn", details = new { missing } });
+            checks.Add(new DoctorCheck(
+                "paths",
+                "warn",
+                new DoctorCheckDetails(
+                    Version: null,
+                    Error: null,
+                    Reason: null,
+                    Path: null,
+                    Missing: missing,
+                    SchemaErrors: null)));
             hasWarnings = true;
         }
 
         var ghStatus = GithubService.CheckAuthStatus(repoRoot);
         if (ghStatus.Status == "ok")
         {
-            checks.Add(new { name = "gh", status = "ok", details = new { version = ghStatus.Version } });
+            checks.Add(new DoctorCheck(
+                "gh",
+                "ok",
+                new DoctorCheckDetails(
+                    Version: ghStatus.Version,
+                    Error: null,
+                    Reason: null,
+                    Path: null,
+                    Missing: null,
+                    SchemaErrors: null)));
         }
         else
         {
-            checks.Add(new { name = "gh", status = ghStatus.Status, details = new { reason = ghStatus.Reason } });
+            checks.Add(new DoctorCheck(
+                "gh",
+                ghStatus.Status,
+                new DoctorCheckDetails(
+                    Version: null,
+                    Error: null,
+                    Reason: ghStatus.Reason,
+                    Path: null,
+                    Missing: null,
+                    SchemaErrors: null)));
             hasWarnings = true;
         }
 
         if (resolvedFormat == "json")
         {
-            WriteJson(new
-            {
-                ok = !hasError,
-                data = new
-                {
-                    repoRoot,
-                    checks
-                }
-            });
+            var payload = new DoctorOutput(
+                !hasError,
+                new DoctorData(repoRoot, checks));
+            WriteJson(payload, WorkbenchJsonContext.Default.DoctorOutput);
         }
         else
         {
@@ -187,14 +286,15 @@ doctorCommand.SetHandler((string? repo, string format) =>
 
         if (hasError)
         {
-            return 2;
+            SetExitCode(2);
+            return;
         }
-        return hasWarnings ? 1 : 0;
+        SetExitCode(hasWarnings ? 1 : 0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption);
 root.AddCommand(doctorCommand);
@@ -212,16 +312,10 @@ scaffoldCommand.SetHandler((string? repo, string format, bool force) =>
         var result = ScaffoldService.Scaffold(repoRoot, force);
         if (resolvedFormat == "json")
         {
-            WriteJson(new
-            {
-                ok = true,
-                data = new
-                {
-                    created = result.Created,
-                    skipped = result.Skipped,
-                    configPath = result.ConfigPath
-                }
-            });
+            var payload = new ScaffoldOutput(
+                true,
+                new ScaffoldData(result.Created, result.Skipped, result.ConfigPath));
+            WriteJson(payload, WorkbenchJsonContext.Default.ScaffoldOutput);
         }
         else
         {
@@ -243,12 +337,12 @@ scaffoldCommand.SetHandler((string? repo, string format, bool force) =>
                 }
             }
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, scaffoldForceOption);
 root.AddCommand(scaffoldCommand);
@@ -264,19 +358,12 @@ configShowCommand.SetHandler((string? repo, string format) =>
         var config = WorkbenchConfig.Load(repoRoot, out var configError);
         if (resolvedFormat == "json")
         {
-            WriteJson(new
-            {
-                ok = configError is null,
-                data = new
-                {
+            var payload = new ConfigOutput(
+                configError is null,
+                new ConfigData(
                     config,
-                    sources = new
-                    {
-                        defaults = true,
-                        repoConfig = WorkbenchConfig.GetConfigPath(repoRoot)
-                    }
-                }
-            });
+                    new ConfigSources(true, WorkbenchConfig.GetConfigPath(repoRoot))));
+            WriteJson(payload, WorkbenchJsonContext.Default.ConfigOutput);
         }
         else
         {
@@ -285,14 +372,14 @@ configShowCommand.SetHandler((string? repo, string format) =>
             {
                 Console.WriteLine($"Config error: {configError}");
             }
-            Console.WriteLine(JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true }));
+            Console.WriteLine(JsonSerializer.Serialize(config, WorkbenchJsonContext.Default.WorkbenchConfig));
         }
-        return configError is null ? 0 : 2;
+        SetExitCode(configError is null ? 0 : 2);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption);
 configCommand.AddCommand(configShowCommand);
@@ -361,32 +448,27 @@ itemNewCommand.SetHandler((string? repo, string format, string type, string titl
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var result = WorkItemService.CreateItem(repoRoot, config, type, title, status, priority, owner);
         if (resolvedFormat == "json")
         {
-            WriteJson(new
-            {
-                ok = true,
-                data = new
-                {
-                    id = result.Id,
-                    slug = result.Slug,
-                    path = result.Path
-                }
-            });
+            var payload = new ItemCreateOutput(
+                true,
+                new ItemCreateData(result.Id, result.Slug, result.Path));
+            WriteJson(payload, WorkbenchJsonContext.Default.ItemCreateOutput);
         }
         else
         {
             Console.WriteLine($"{result.Id} created at {result.Path}");
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, itemTypeOption, itemTitleOption, itemStatusOption, itemPriorityOption, itemOwnerOption);
 itemCommand.AddCommand(itemNewCommand);
@@ -410,7 +492,8 @@ itemListCommand.SetHandler((string? repo, string format, string? type, string? s
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var list = WorkItemService.ListItems(repoRoot, config, includeDone);
         var items = list.Items;
@@ -425,21 +508,13 @@ itemListCommand.SetHandler((string? repo, string format, string? type, string? s
 
         if (resolvedFormat == "json")
         {
-            WriteJson(new
-            {
-                ok = true,
-                data = new
-                {
-                    items = items.Select(item => new
-                    {
-                        id = item.Id,
-                        type = item.Type,
-                        status = item.Status,
-                        title = item.Title,
-                        path = item.Path
-                    }).ToList()
-                }
-            });
+            var payloadItems = items
+                .Select(item => new ItemSummary(item.Id, item.Type, item.Status, item.Title, item.Path))
+                .ToList();
+            var payload = new ItemListOutput(
+                true,
+                new ItemListData(payloadItems));
+            WriteJson(payload, WorkbenchJsonContext.Default.ItemListOutput);
         }
         else
         {
@@ -448,12 +523,12 @@ itemListCommand.SetHandler((string? repo, string format, string? type, string? s
                 Console.WriteLine($"{item.Id}\t{item.Status}\t{item.Title}");
             }
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, listTypeOption, listStatusOption, includeDoneOption);
 itemCommand.AddCommand(itemListCommand);
@@ -471,33 +546,17 @@ itemShowCommand.SetHandler((string? repo, string format, string id) =>
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var item = WorkItemService.LoadItem(path) ?? throw new InvalidOperationException("Invalid work item.");
         if (resolvedFormat == "json")
         {
-            WriteJson(new
-            {
-                ok = true,
-                data = new
-                {
-                    item = new
-                    {
-                        id = item.Id,
-                        type = item.Type,
-                        status = item.Status,
-                        title = item.Title,
-                        priority = item.Priority,
-                        owner = item.Owner,
-                        created = item.Created,
-                        updated = item.Updated,
-                        tags = item.Tags,
-                        related = item.Related,
-                        path = item.Path
-                    }
-                }
-            });
+            var payload = new ItemShowOutput(
+                true,
+                new ItemShowData(ItemToPayload(item)));
+            WriteJson(payload, WorkbenchJsonContext.Default.ItemShowOutput);
         }
         else
         {
@@ -506,12 +565,12 @@ itemShowCommand.SetHandler((string? repo, string format, string id) =>
             Console.WriteLine($"Status: {item.Status}");
             Console.WriteLine($"Path: {item.Path}");
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, itemIdArg);
 itemCommand.AddCommand(itemShowCommand);
@@ -533,24 +592,28 @@ itemStatusCommand.SetHandler((string? repo, string format, string id, string sta
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var updated = WorkItemService.UpdateStatus(path, status, note);
         if (resolvedFormat == "json")
         {
-            WriteJson(new { ok = true, data = new { item = updated } });
+            var payload = new ItemStatusOutput(
+                true,
+                new ItemStatusData(ItemToPayload(updated)));
+            WriteJson(payload, WorkbenchJsonContext.Default.ItemStatusOutput);
         }
         else
         {
             Console.WriteLine($"{updated.Id} status updated to {updated.Status}.");
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, statusIdArg, statusValueArg, noteOption);
 itemCommand.AddCommand(itemStatusCommand);
@@ -570,7 +633,8 @@ itemCloseCommand.SetHandler((string? repo, string format, string id, bool move) 
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var updated = WorkItemService.Close(path, move, config, repoRoot);
@@ -585,18 +649,21 @@ itemCloseCommand.SetHandler((string? repo, string format, string id, bool move) 
         }
         if (resolvedFormat == "json")
         {
-            WriteJson(new { ok = true, data = new { item = updated, moved = move } });
+            var payload = new ItemCloseOutput(
+                true,
+                new ItemCloseData(ItemToPayload(updated), move));
+            WriteJson(payload, WorkbenchJsonContext.Default.ItemCloseOutput);
         }
         else
         {
             Console.WriteLine($"{updated.Id} closed.");
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, closeIdArg, moveOption);
 itemCommand.AddCommand(itemCloseCommand);
@@ -616,25 +683,29 @@ itemMoveCommand.SetHandler((string? repo, string format, string id, string to) =
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var updated = WorkItemService.Move(path, to, repoRoot);
         LinkUpdater.UpdateLinks(repoRoot, path, updated.Path);
         if (resolvedFormat == "json")
         {
-            WriteJson(new { ok = true, data = new { item = updated } });
+            var payload = new ItemMoveOutput(
+                true,
+                new ItemMoveData(ItemToPayload(updated)));
+            WriteJson(payload, WorkbenchJsonContext.Default.ItemMoveOutput);
         }
         else
         {
             Console.WriteLine($"{updated.Id} moved to {updated.Path}.");
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, moveIdArg, moveToOption);
 itemCommand.AddCommand(itemMoveCommand);
@@ -654,25 +725,29 @@ itemRenameCommand.SetHandler((string? repo, string format, string id, string tit
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var updated = WorkItemService.Rename(path, title, config, repoRoot);
         LinkUpdater.UpdateLinks(repoRoot, path, updated.Path);
         if (resolvedFormat == "json")
         {
-            WriteJson(new { ok = true, data = new { item = updated } });
+            var payload = new ItemRenameOutput(
+                true,
+                new ItemRenameData(ItemToPayload(updated)));
+            WriteJson(payload, WorkbenchJsonContext.Default.ItemRenameOutput);
         }
         else
         {
             Console.WriteLine($"{updated.Id} renamed to {updated.Path}.");
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, renameIdArg, renameTitleOption);
 itemCommand.AddCommand(itemRenameCommand);
@@ -701,23 +776,27 @@ Command BuildAddCommand(string typeName)
             if (configError is not null)
             {
                 Console.WriteLine($"Config error: {configError}");
-                return 2;
+                SetExitCode(2);
+                return;
             }
             var result = WorkItemService.CreateItem(repoRoot, config, typeName, title, status, priority, owner);
             if (resolvedFormat == "json")
             {
-                WriteJson(new { ok = true, data = result });
+                var payload = new ItemCreateOutput(
+                    true,
+                    new ItemCreateData(result.Id, result.Slug, result.Path));
+                WriteJson(payload, WorkbenchJsonContext.Default.ItemCreateOutput);
             }
             else
             {
                 Console.WriteLine($"{result.Id} created at {result.Path}");
             }
-            return 0;
+            SetExitCode(0);
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex.Message);
-            return 2;
+            SetExitCode(2);
         }
     }, repoOption, formatOption, titleOption, statusOption, priorityOption, ownerOption);
     return cmd;
@@ -739,23 +818,27 @@ boardRegenCommand.SetHandler((string? repo, string format) =>
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var result = WorkboardService.Regenerate(repoRoot, config);
         if (resolvedFormat == "json")
         {
-            WriteJson(new { ok = true, data = result });
+            var payload = new BoardOutput(
+                true,
+                new BoardData(result.Path, result.Counts));
+            WriteJson(payload, WorkbenchJsonContext.Default.BoardOutput);
         }
         else
         {
             Console.WriteLine($"Workboard regenerated: {result.Path}");
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption);
 boardCommand.AddCommand(boardRegenCommand);
@@ -779,18 +862,19 @@ promoteCommand.AddOption(promotePrOption);
 promoteCommand.AddOption(promoteBaseOption);
 promoteCommand.AddOption(promoteDraftOption);
 promoteCommand.AddOption(promoteNoDraftOption);
-promoteCommand.SetHandler((
-    string? repo,
-    string format,
-    string type,
-    string title,
-    bool push,
-    bool start,
-    bool pr,
-    string? baseBranch,
-    bool draft,
-    bool noDraft) =>
+promoteCommand.SetHandler((InvocationContext context) =>
 {
+    var repo = context.ParseResult.GetValueForOption(repoOption);
+    var format = context.ParseResult.GetValueForOption(formatOption) ?? "table";
+    var type = context.ParseResult.GetValueForOption(promoteTypeOption) ?? string.Empty;
+    var title = context.ParseResult.GetValueForOption(promoteTitleOption) ?? string.Empty;
+    var push = context.ParseResult.GetValueForOption(promotePushOption);
+    var start = context.ParseResult.GetValueForOption(promoteStartOption);
+    var pr = context.ParseResult.GetValueForOption(promotePrOption);
+    var baseBranch = context.ParseResult.GetValueForOption(promoteBaseOption);
+    var draft = context.ParseResult.GetValueForOption(promoteDraftOption);
+    var noDraft = context.ParseResult.GetValueForOption(promoteNoDraftOption);
+
     try
     {
         var repoRoot = ResolveRepo(repo);
@@ -799,12 +883,14 @@ promoteCommand.SetHandler((
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         if (config.Git.RequireCleanWorkingTree && !GitService.IsClean(repoRoot))
         {
             Console.WriteLine("Working tree is not clean.");
-            return 2;
+            SetExitCode(2);
+            return;
         }
 
         var status = start ? "in-progress" : null;
@@ -833,18 +919,15 @@ promoteCommand.SetHandler((
 
         if (resolvedFormat == "json")
         {
-            WriteJson(new
-            {
-                ok = true,
-                data = new
-                {
-                    item = created,
+            var payload = new PromoteOutput(
+                true,
+                new PromoteData(
+                    ItemToPayload(item),
                     branch,
-                    commit = new { sha, message = commitMessage },
-                    pushed = shouldPush,
-                    pr = prUrl
-                }
-            });
+                    new CommitInfo(sha, commitMessage),
+                    shouldPush,
+                    prUrl));
+            WriteJson(payload, WorkbenchJsonContext.Default.PromoteOutput);
         }
         else
         {
@@ -854,14 +937,14 @@ promoteCommand.SetHandler((
                 Console.WriteLine($"PR: {prUrl}");
             }
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
-}, repoOption, formatOption, promoteTypeOption, promoteTitleOption, promotePushOption, promoteStartOption, promotePrOption, promoteBaseOption, promoteDraftOption, promoteNoDraftOption);
+});
 root.AddCommand(promoteCommand);
 
 var prCommand = new Command("pr", "Pull request commands.");
@@ -884,7 +967,8 @@ prCreateCommand.SetHandler((string? repo, string format, string id, string? base
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var item = WorkItemService.LoadItem(path) ?? throw new InvalidOperationException("Invalid work item.");
@@ -892,18 +976,21 @@ prCreateCommand.SetHandler((string? repo, string format, string id, string? base
 
         if (resolvedFormat == "json")
         {
-            WriteJson(new { ok = true, data = new { pr = prUrl, item = item.Id } });
+            var payload = new PrOutput(
+                true,
+                new PrData(prUrl, item.Id));
+            WriteJson(payload, WorkbenchJsonContext.Default.PrOutput);
         }
         else
         {
             Console.WriteLine(prUrl);
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, prIdArg, prBaseOption, prDraftOption, prFillOption);
 prCommand.AddCommand(prCreateCommand);
@@ -925,7 +1012,8 @@ createPrCommand.SetHandler((string? repo, string format, string id, string? base
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var item = WorkItemService.LoadItem(path) ?? throw new InvalidOperationException("Invalid work item.");
@@ -933,22 +1021,169 @@ createPrCommand.SetHandler((string? repo, string format, string id, string? base
 
         if (resolvedFormat == "json")
         {
-            WriteJson(new { ok = true, data = new { pr = prUrl, item = item.Id } });
+            var payload = new PrOutput(
+                true,
+                new PrData(prUrl, item.Id));
+            WriteJson(payload, WorkbenchJsonContext.Default.PrOutput);
         }
         else
         {
             Console.WriteLine(prUrl);
         }
-        return 0;
+        SetExitCode(0);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, prIdArg, prBaseOption, prDraftOption, prFillOption);
 createCommand.AddCommand(createPrCommand);
 root.AddCommand(createCommand);
+
+var docCommand = new Command("doc", "Documentation commands.");
+
+var docNewCommand = new Command("new", "Create a documentation file with Workbench front matter.");
+var docTypeOption = new Option<string>("--type", "Doc type: spec, adr, doc, runbook, guide") { IsRequired = true };
+docTypeOption.AddCompletions("spec", "adr", "doc", "runbook", "guide");
+var docTitleOption = new Option<string>("--title", "Doc title") { IsRequired = true };
+var docPathOption = new Option<string?>("--path", "Destination path (defaults by type).");
+var docWorkItemOption = new Option<string[]>(
+    "--work-item",
+    description: "Link one or more work items.")
+{
+    AllowMultipleArgumentsPerToken = true
+};
+var docCodeRefOption = new Option<string[]>(
+    "--code-ref",
+    description: "Add code reference(s) (e.g., src/Foo.cs#L10-L20).")
+{
+    AllowMultipleArgumentsPerToken = true
+};
+var docForceOption = new Option<bool>("--force", "Overwrite existing file.");
+
+docNewCommand.AddOption(docTypeOption);
+docNewCommand.AddOption(docTitleOption);
+docNewCommand.AddOption(docPathOption);
+docNewCommand.AddOption(docWorkItemOption);
+docNewCommand.AddOption(docCodeRefOption);
+docNewCommand.AddOption(docForceOption);
+docNewCommand.SetHandler((
+    string? repo,
+    string format,
+    string type,
+    string title,
+    string? path,
+    string[] workItems,
+    string[] codeRefs,
+    bool force) =>
+{
+    try
+    {
+        var repoRoot = ResolveRepo(repo);
+        var resolvedFormat = ResolveFormat(format);
+        var config = WorkbenchConfig.Load(repoRoot, out var configError);
+        if (configError is not null)
+        {
+            Console.WriteLine($"Config error: {configError}");
+            SetExitCode(2);
+            return;
+        }
+
+        var result = DocService.CreateDoc(
+            repoRoot,
+            config,
+            type,
+            title,
+            path,
+            workItems.ToList(),
+            codeRefs.ToList(),
+            force);
+
+        if (resolvedFormat == "json")
+        {
+            var payload = new DocCreateOutput(
+                true,
+                new DocCreateData(result.Path, result.Type, result.WorkItems));
+            WriteJson(payload, WorkbenchJsonContext.Default.DocCreateOutput);
+        }
+        else
+        {
+            Console.WriteLine($"Doc created at {result.Path}");
+        }
+        SetExitCode(0);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.Message);
+        SetExitCode(2);
+    }
+}, repoOption, formatOption, docTypeOption, docTitleOption, docPathOption, docWorkItemOption, docCodeRefOption, docForceOption);
+
+var docSyncCommand = new Command("sync", "Sync doc/work item backlinks.");
+var docSyncAllOption = new Option<bool>("--all", "Add Workbench front matter to all docs.");
+var docSyncDryRunOption = new Option<bool>("--dry-run", "Report changes without writing files.");
+docSyncCommand.AddOption(docSyncAllOption);
+docSyncCommand.AddOption(docSyncDryRunOption);
+docSyncCommand.SetHandler((string? repo, string format, bool all, bool dryRun) =>
+{
+    try
+    {
+        var repoRoot = ResolveRepo(repo);
+        var resolvedFormat = ResolveFormat(format);
+        var config = WorkbenchConfig.Load(repoRoot, out var configError);
+        if (configError is not null)
+        {
+            Console.WriteLine($"Config error: {configError}");
+            SetExitCode(2);
+            return;
+        }
+
+        var result = DocService.SyncLinks(repoRoot, config, all, dryRun);
+        if (resolvedFormat == "json")
+        {
+            var payload = new DocSyncOutput(
+                true,
+                new DocSyncData(
+                    result.DocsUpdated,
+                    result.ItemsUpdated,
+                    result.MissingDocs,
+                    result.MissingItems));
+            WriteJson(payload, WorkbenchJsonContext.Default.DocSyncOutput);
+        }
+        else
+        {
+            Console.WriteLine($"Docs updated: {result.DocsUpdated}");
+            Console.WriteLine($"Work items updated: {result.ItemsUpdated}");
+            if (result.MissingDocs.Count > 0)
+            {
+                Console.WriteLine("Missing docs:");
+                foreach (var entry in result.MissingDocs)
+                {
+                    Console.WriteLine($"- {entry}");
+                }
+            }
+            if (result.MissingItems.Count > 0)
+            {
+                Console.WriteLine("Missing work items:");
+                foreach (var entry in result.MissingItems)
+                {
+                    Console.WriteLine($"- {entry}");
+                }
+            }
+        }
+        SetExitCode(0);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.Message);
+        SetExitCode(2);
+    }
+}, repoOption, formatOption, docSyncAllOption, docSyncDryRunOption);
+
+docCommand.AddCommand(docNewCommand);
+docCommand.AddCommand(docSyncCommand);
+root.AddCommand(docCommand);
 
 var validateCommand = new Command("validate", "Validate work items, links, and schemas.");
 var strictOption = new Option<bool>("--strict", "Treat warnings as errors.");
@@ -966,29 +1201,25 @@ validateCommand.SetHandler((string? repo, string format, bool strict, bool verbo
         if (configError is not null)
         {
             Console.WriteLine($"Config error: {configError}");
-            return 2;
+            SetExitCode(2);
+            return;
         }
         var result = ValidationService.ValidateRepo(repoRoot, config);
         var exit = result.Errors.Count > 0 ? 2 : result.Warnings.Count > 0 ? (strict ? 2 : 1) : 0;
 
         if (resolvedFormat == "json")
         {
-            WriteJson(new
-            {
-                ok = result.Errors.Count == 0,
-                data = new
-                {
-                    errors = result.Errors,
-                    warnings = result.Warnings,
-                    counts = new
-                    {
-                        errors = result.Errors.Count,
-                        warnings = result.Warnings.Count,
-                        workItems = result.WorkItemCount,
-                        markdownFiles = result.MarkdownFileCount
-                    }
-                }
-            });
+            var payload = new ValidateOutput(
+                result.Errors.Count == 0,
+                new ValidateData(
+                    result.Errors,
+                    result.Warnings,
+                    new ValidateCounts(
+                        result.Errors.Count,
+                        result.Warnings.Count,
+                        result.WorkItemCount,
+                        result.MarkdownFileCount)));
+            WriteJson(payload, WorkbenchJsonContext.Default.ValidateOutput);
         }
         else
         {
@@ -1018,14 +1249,15 @@ validateCommand.SetHandler((string? repo, string format, bool strict, bool verbo
                 Console.WriteLine("Validation passed.");
             }
         }
-        return exit;
+        SetExitCode(exit);
     }
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
-        return 2;
+        SetExitCode(2);
     }
 }, repoOption, formatOption, strictOption, verboseOption);
 root.AddCommand(validateCommand);
 
-return await root.InvokeAsync(args);
+var exitCode = await root.InvokeAsync(args);
+return Environment.ExitCode != 0 ? Environment.ExitCode : exitCode;
