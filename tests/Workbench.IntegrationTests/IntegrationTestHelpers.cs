@@ -120,7 +120,7 @@ internal static class TestAssertions
         var enabled = Environment.GetEnvironmentVariable("WORKBENCH_RUN_GH_TESTS");
         if (!string.Equals(enabled, "1", StringComparison.OrdinalIgnoreCase))
         {
-            throw new SkipException("Set WORKBENCH_RUN_GH_TESTS=1 to enable GitHub CLI integration tests.");
+            throw SkipException.ForSkip("Set WORKBENCH_RUN_GH_TESTS=1 to enable GitHub CLI integration tests.");
         }
     }
 }

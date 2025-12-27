@@ -102,6 +102,22 @@ Commands:
   - Regenerate `work/WORKBOARD.md`.
   - Example: `workbench board regen`
 
+- `workbench doc new --type <spec|adr|doc|runbook|guide> --title "<...>" [--path <...>] [--work-item <ID...>] [--code-ref <ref...>] [--force]`
+  - Create a documentation file with Workbench front matter and optional backlinks.
+  - Example: `workbench doc new --type spec --title "Payment flow" --work-item TASK-0042`
+
+- `workbench doc sync [--all] [--dry-run]`
+  - Sync doc/work item backlinks. `--all` adds Workbench front matter to all docs; `--dry-run` reports changes without writing.
+  - Example: `workbench doc sync --all --dry-run`
+
+- `workbench spec new --title "<...>" [--path <...>] [--work-item <ID...>] [--code-ref <ref...>] [--force]`
+  - Create a spec document and auto-link work items.
+  - Example: `workbench spec new --title "Access model" --work-item TASK-0100`
+
+- `workbench adr new --title "<...>" [--path <...>] [--work-item <ID...>] [--code-ref <ref...>] [--force]`
+  - Create an ADR document and auto-link work items.
+  - Example: `workbench adr new --title "Persist audit logs" --work-item TASK-0123`
+
 - `workbench promote --type <...> --title "<...>" [--push] [--start] [--pr] [--base <branch>] [--draft|--no-draft]`
   - Create a work item, branch, and commit in one step; optionally create a PR.
   - Example: `workbench promote --type task --title "Add validate command" --start --pr --draft`
