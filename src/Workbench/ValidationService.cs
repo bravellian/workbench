@@ -377,14 +377,19 @@ public static class ValidationService
 
     private static IEnumerable<string> ExtractMarkdownLinks(string content)
     {
-        var matches = Regex.Matches(content, @"\[[^\]]*\]\(([^)]+)\)",  RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+        var matches = Regex.Matches(
+            content,
+            @"\[[^\]]*\]\((?<link>[^)]+)\)",
+            RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            TimeSpan.FromSeconds(1));
 #pragma warning disable S3267
         foreach (Match match in matches)
 #pragma warning restore S3267
         {
-            if (match.Groups.Count > 1)
+            var linkGroup = match.Groups["link"];
+            if (linkGroup.Success)
             {
-                yield return match.Groups[1].Value.Trim();
+                yield return linkGroup.Value.Trim();
             }
         }
     }
