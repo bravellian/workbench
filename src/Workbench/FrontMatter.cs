@@ -5,10 +5,10 @@ namespace Workbench;
 
 public sealed class FrontMatter
 {
-    public Dictionary<string, object?> Data { get; }
+    public IDictionary<string, object?> Data { get; }
     public string Body { get; }
 
-    public FrontMatter(Dictionary<string, object?> data, string body)
+    public FrontMatter(IDictionary<string, object?> data, string body)
     {
         Data = data;
         Body = body;
@@ -19,13 +19,13 @@ public sealed class FrontMatter
         frontMatter = null;
         error = null;
         var lines = content.Replace("\r\n", "\n").Split('\n');
-        if (lines.Length < 3 || lines[0].Trim() != "---")
+        if (lines.Length < 3 || !string.Equals(lines[0].Trim(), "---", StringComparison.OrdinalIgnoreCase))
         {
             error = "Missing front matter start delimiter.";
             return false;
         }
 
-        var endIndex = Array.FindIndex(lines, 1, line => line.Trim() == "---");
+        var endIndex = Array.FindIndex(lines, 1, line => string.Equals(line.Trim(), "---", StringComparison.OrdinalIgnoreCase));
         if (endIndex <= 1)
         {
             error = "Missing front matter end delimiter.";
@@ -46,7 +46,7 @@ public sealed class FrontMatter
         }
         catch (Exception ex)
         {
-            error = ex.Message;
+            error = ex.ToString();
             return false;
         }
     }
@@ -213,15 +213,15 @@ public sealed class FrontMatter
 
     private static object? ParseScalar(string value)
     {
-        if (value == "null" || value == "~")
+        if (string.Equals(value, "null", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "~", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
-        if (value == "[]")
+        if (string.Equals(value, "[]", StringComparison.OrdinalIgnoreCase))
         {
             return new List<object?>();
         }
-        if (value == "{}")
+        if (string.Equals(value, "{}", StringComparison.OrdinalIgnoreCase))
         {
             return new Dictionary<string, object?>(StringComparer.Ordinal);
         }
@@ -241,7 +241,7 @@ public sealed class FrontMatter
         return value;
     }
 
-    private static string SerializeMap(Dictionary<string, object?> map, int indent)
+    private static string SerializeMap(IDictionary<string, object?> map, int indent)
     {
         var indentText = new string(' ', indent);
         var lines = new List<string>();
@@ -256,7 +256,8 @@ public sealed class FrontMatter
                 case Dictionary<object, object> legacyNested:
                     var converted = legacyNested.ToDictionary(
                         kvp => kvp.Key.ToString() ?? string.Empty,
-                        kvp => (object?)kvp.Value);
+                        kvp => (object?)kvp.Value,
+                        StringComparer.OrdinalIgnoreCase);
                     lines.Add($"{indentText}{key}:");
                     lines.Add(SerializeMap(converted, indent + 2).TrimEnd('\n'));
                     break;

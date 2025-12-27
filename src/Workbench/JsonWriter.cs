@@ -63,7 +63,8 @@ public static class JsonWriter
             case Dictionary<object, object> legacyDict:
                 WriteObject(writer, legacyDict.ToDictionary(
                     kvp => kvp.Key.ToString() ?? string.Empty,
-                    kvp => (object?)kvp.Value));
+                    kvp => (object?)kvp.Value,
+                    StringComparer.OrdinalIgnoreCase));
                 return;
             case IEnumerable enumerable when value is not string:
                 WriteArray(writer, enumerable);

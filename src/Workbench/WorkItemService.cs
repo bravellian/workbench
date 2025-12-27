@@ -7,7 +7,7 @@ public static class WorkItemService
 {
     public sealed record WorkItemResult(string Id, string Slug, string Path);
 
-    public sealed record WorkItemListResult(List<WorkItem> Items);
+    public sealed record WorkItemListResult(IList<WorkItem> Items);
 
     public static WorkItemResult CreateItem(
         string repoRoot,
@@ -33,7 +33,7 @@ public static class WorkItemService
 
         var id = AllocateId(repoRoot, config, type);
         var slug = Slugify(title);
-        var created = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        var created = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         frontMatter!.Data["id"] = id;
         frontMatter.Data["type"] = type;
@@ -140,7 +140,7 @@ public static class WorkItemService
         }
 
         frontMatter!.Data["status"] = status;
-        frontMatter.Data["updated"] = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        frontMatter.Data["updated"] = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var body = frontMatter.Body;
         if (!string.IsNullOrWhiteSpace(note))
         {
@@ -281,7 +281,7 @@ public static class WorkItemService
     {
         var prefix = config.GetPrefix(type);
         var width = config.Ids.Width;
-        var pattern = new Regex($"^{Regex.Escape(prefix)}-(\\d+)", RegexOptions.Compiled);
+        var pattern = new Regex($"^{Regex.Escape(prefix)}-(\\d+)", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
         var max = 0;
 
         foreach (var dir in new[] { config.Paths.ItemsDir, config.Paths.DoneDir })
@@ -299,7 +299,7 @@ public static class WorkItemService
                 {
                     continue;
                 }
-                if (int.TryParse(match.Groups[1].Value, out var value))
+                if (int.TryParse(match.Groups[1].Value, CultureInfo.InvariantCulture, out var value))
                 {
                     max = Math.Max(max, value);
                 }
@@ -307,15 +307,15 @@ public static class WorkItemService
         }
 
         var next = max + 1;
-        return $"{prefix}-{next.ToString($"D{width}")}";
+        return $"{prefix}-{next.ToString($"D{width}", CultureInfo.InvariantCulture)}";
     }
 
     public static string Slugify(string title)
     {
         var lowered = title.ToLowerInvariant();
-        var cleaned = Regex.Replace(lowered, @"[^a-z0-9-\s]", "");
-        var dashed = Regex.Replace(cleaned, @"\s+", "-");
-        var collapsed = Regex.Replace(dashed, @"-+", "-");
+        var cleaned = Regex.Replace(lowered, @"[^a-z0-9-\s]", "", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+        var dashed = Regex.Replace(cleaned, @"\s+", "-", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+        var collapsed = Regex.Replace(dashed, @"-+", "-", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
         return collapsed.Trim('-');
     }
 
@@ -389,7 +389,7 @@ public static class WorkItemService
         return string.Join("\n", lines);
     }
 
-    private static string? GetString(Dictionary<string, object?> data, string key)
+    private static string? GetString(IDictionary<string, object?> data, string key)
     {
         if (!data.TryGetValue(key, out var value) || value is null)
         {
@@ -398,7 +398,7 @@ public static class WorkItemService
         return value.ToString();
     }
 
-    private static List<string> GetStringList(Dictionary<string, object?> data, string key)
+    private static List<string> GetStringList(IDictionary<string, object?> data, string key)
     {
         if (!data.TryGetValue(key, out var value) || value is null)
         {
@@ -411,7 +411,7 @@ public static class WorkItemService
         return new List<string>();
     }
 
-    private static Dictionary<string, object?>? GetRelatedMap(Dictionary<string, object?> data)
+    private static Dictionary<string, object?>? GetRelatedMap(IDictionary<string, object?> data)
     {
         if (!data.TryGetValue("related", out var relatedObj) || relatedObj is null)
         {
@@ -425,7 +425,8 @@ public static class WorkItemService
         {
             return legacy.ToDictionary(
                 kvp => kvp.Key.ToString() ?? string.Empty,
-                kvp => (object?)kvp.Value);
+                kvp => (object?)kvp.Value,
+                StringComparer.OrdinalIgnoreCase);
         }
         return null;
     }
@@ -453,12 +454,12 @@ public static class WorkItemService
         return reset;
     }
 
-    private static RelatedLinks GetRelated(Dictionary<string, object?> data)
+    private static RelatedLinks GetRelated(IDictionary<string, object?> data)
     {
         var related = GetRelatedMap(data);
         if (related is null)
         {
-            return new RelatedLinks(new(), new(), new(), new(), new());
+            return new RelatedLinks(new List<string>(), new List<string>(), new List<string>(), new List<string>(), new List<string>());
         }
 
         List<string> Extract(string key)

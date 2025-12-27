@@ -5,15 +5,15 @@ namespace Workbench;
 
 public static class DocService
 {
-    public sealed record DocCreateResult(string Path, string Type, List<string> WorkItems);
+    public sealed record DocCreateResult(string Path, string Type, IList<string> WorkItems);
 
     public sealed record DocSyncResult(
         int DocsUpdated,
         int ItemsUpdated,
-        List<string> MissingDocs,
-        List<string> MissingItems);
+        IList<string> MissingDocs,
+        IList<string> MissingItems);
 
-    private static readonly HashSet<string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> allowedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "spec",
         "adr",
@@ -28,11 +28,11 @@ public static class DocService
         string type,
         string title,
         string? path,
-        List<string> workItems,
-        List<string> codeRefs,
+        IList<string> workItems,
+        IList<string> codeRefs,
         bool force)
     {
-        if (!AllowedTypes.Contains(type))
+        if (!allowedTypes.Contains(type))
         {
             throw new InvalidOperationException($"Invalid doc type '{type}'.");
         }
@@ -143,9 +143,9 @@ public static class DocService
     private static int SyncDocList(
         string repoRoot,
         WorkItem item,
-        List<string> docs,
+        IList<string> docs,
         string docType,
-        List<string> missingDocs,
+        IList<string> missingDocs,
         bool dryRun)
     {
         var updated = 0;
@@ -291,7 +291,8 @@ public static class DocService
         {
             workbench = legacy.ToDictionary(
                 kvp => kvp.Key.ToString() ?? string.Empty,
-                kvp => (object?)kvp.Value);
+                kvp => (object?)kvp.Value,
+                StringComparer.OrdinalIgnoreCase);
             data["workbench"] = workbench;
             changed = true;
         }
@@ -305,22 +306,6 @@ public static class DocService
         }
 
         return workbench;
-    }
-
-    private static List<string> GetStringList(Dictionary<string, object?> data, string key)
-    {
-        if (!data.TryGetValue(key, out var value) || value is null)
-        {
-            return new List<string>();
-        }
-        if (value is IEnumerable enumerable && value is not string)
-        {
-            return enumerable.Cast<object?>()
-                .Select(item => item?.ToString() ?? string.Empty)
-                .Where(item => item.Length > 0)
-                .ToList();
-        }
-        return new List<string>();
     }
 
     private static List<string> EnsureStringList(Dictionary<string, object?> data, string key, out bool changed)
@@ -386,7 +371,7 @@ public static class DocService
         };
         if (type.Equals("adr", StringComparison.OrdinalIgnoreCase))
         {
-            var date = DateTime.UtcNow.ToString("yyyy-MM-dd");
+            var date = DateTime.UtcNow.ToString("yyyy-MM-dd",  CultureInfo.InvariantCulture);
             return Path.Combine(dir, $"{date}-{slug}.md");
         }
         return Path.Combine(dir, $"{slug}.md");
@@ -404,7 +389,9 @@ public static class DocService
     private static HashSet<string> BuildReferencedDocSet(string repoRoot, IEnumerable<WorkItem> items)
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+#pragma warning disable S3267
         foreach (var item in items)
+#pragma warning restore S3267
         {
             AddLinks(set, repoRoot, item.Related.Specs);
             AddLinks(set, repoRoot, item.Related.Adrs);

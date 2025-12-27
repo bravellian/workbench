@@ -4,14 +4,6 @@ using System.Linq;
 
 namespace Workbench;
 
-public sealed class ValidationResult
-{
-    public List<string> Errors { get; } = new();
-    public List<string> Warnings { get; } = new();
-    public int WorkItemCount { get; set; }
-    public int MarkdownFileCount { get; set; }
-}
-
 public static class ValidationService
 {
     public static ValidationResult ValidateRepo(string repoRoot, WorkbenchConfig config)
@@ -52,7 +44,7 @@ public static class ValidationService
     private static void ValidateItems(string repoRoot, List<WorkItemRecord> items, WorkbenchConfig config, ValidationResult result)
     {
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var idPattern = new Regex($"^[A-Z]+-\\d{{{config.Ids.Width}}}$");
+        var idPattern = new Regex($"^[A-Z]+-\\d{{{config.Ids.Width}}}$", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
         var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "bug", "task", "spike" };
         var allowedStatus = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -63,7 +55,9 @@ public static class ValidationService
             "low", "medium", "high", "critical"
         };
 
+#pragma warning disable S3267
         foreach (var item in items)
+#pragma warning restore S3267
         {
             var content = File.ReadAllText(item.Path);
             if (!FrontMatter.TryParse(content, out var frontMatter, out var error))
@@ -211,7 +205,7 @@ public static class ValidationService
     }
 
     private static void ValidateRelated(
-        Dictionary<string, object?> data,
+        IDictionary<string, object?> data,
         string itemPath,
         string? id,
         ValidationResult result)
@@ -298,7 +292,7 @@ public static class ValidationService
         {
             return null;
         }
-        if (link.StartsWith("/"))
+        if (link.StartsWith("/", StringComparison.OrdinalIgnoreCase))
         {
             return Path.Combine(repoRoot, link.TrimStart('/'));
         }
@@ -321,7 +315,7 @@ public static class ValidationService
                     continue;
                 }
 
-                if (target.StartsWith("#") ||
+                if (target.StartsWith("#",  StringComparison.OrdinalIgnoreCase) ||
                     target.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                     target.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
                     target.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
@@ -336,7 +330,7 @@ public static class ValidationService
                 }
 
                 string resolved;
-                if (target.StartsWith("/"))
+                if (target.StartsWith("/", StringComparison.OrdinalIgnoreCase))
                 {
                     resolved = Path.Combine(repoRoot, target.TrimStart('/'));
                 }
@@ -383,8 +377,10 @@ public static class ValidationService
 
     private static IEnumerable<string> ExtractMarkdownLinks(string content)
     {
-        var matches = Regex.Matches(content, @"\[[^\]]*\]\(([^)]+)\)");
+        var matches = Regex.Matches(content, @"\[[^\]]*\]\(([^)]+)\)",  RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+#pragma warning disable S3267
         foreach (Match match in matches)
+#pragma warning restore S3267
         {
             if (match.Groups.Count > 1)
             {
@@ -393,7 +389,7 @@ public static class ValidationService
         }
     }
 
-    private static string? GetString(Dictionary<string, object?> data, string key)
+    private static string? GetString(IDictionary<string, object?> data, string key)
     {
         if (!data.TryGetValue(key, out var value) || value is null)
         {
@@ -402,7 +398,7 @@ public static class ValidationService
         return value.ToString();
     }
 
-    private static List<string> GetStringList(Dictionary<string, object?> data, string key)
+    private static List<string> GetStringList(IDictionary<string, object?> data, string key)
     {
         if (!data.TryGetValue(key, out var value) || value is null)
         {
@@ -418,7 +414,7 @@ public static class ValidationService
         return new List<string>();
     }
 
-    private static Dictionary<string, object?>? GetRelatedMap(Dictionary<string, object?> data)
+    private static Dictionary<string, object?>? GetRelatedMap(IDictionary<string, object?> data)
     {
         if (!data.TryGetValue("related", out var relatedObj) || relatedObj is null)
         {
@@ -432,12 +428,13 @@ public static class ValidationService
         {
             return legacy.ToDictionary(
                 kvp => kvp.Key.ToString() ?? string.Empty,
-                kvp => (object?)kvp.Value);
+                kvp => (object?)kvp.Value,
+                StringComparer.OrdinalIgnoreCase);
         }
         return null;
     }
 
-    private static bool TryGetWorkbenchSection(Dictionary<string, object?> data, out Dictionary<string, object?> workbench)
+    private static bool TryGetWorkbenchSection(IDictionary<string, object?> data, out Dictionary<string, object?> workbench)
     {
         workbench = new Dictionary<string, object?>(StringComparer.Ordinal);
         if (!data.TryGetValue("workbench", out var workbenchObj) || workbenchObj is null)
@@ -453,7 +450,8 @@ public static class ValidationService
         {
             workbench = legacy.ToDictionary(
                 kvp => kvp.Key.ToString() ?? string.Empty,
-                kvp => (object?)kvp.Value);
+                kvp => (object?)kvp.Value,
+                StringComparer.OrdinalIgnoreCase);
             return true;
         }
         return false;
@@ -542,15 +540,15 @@ public static class ValidationService
             return true;
         }
 
-        var match = Regex.Match(anchor, @"^L(?<start>\d+)(C(?<colStart>\d+))?(?:-L(?<end>\d+)(C(?<colEnd>\d+))?)?$");
+        var match = Regex.Match(anchor, @"^L(?<start>\d+)(C(?<colStart>\d+))?(?:-L(?<end>\d+)(C(?<colEnd>\d+))?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture,  TimeSpan.FromSeconds(1));
         if (!match.Success)
         {
             error = $"codeRefs entry '{codeRef}' has an invalid anchor.";
             return false;
         }
 
-        var start = int.Parse(match.Groups["start"].Value);
-        var end = match.Groups["end"].Success ? int.Parse(match.Groups["end"].Value) : start;
+        var start = int.Parse(match.Groups["start"].Value, CultureInfo.InvariantCulture);
+        var end = match.Groups["end"].Success ? int.Parse(match.Groups["end"].Value, CultureInfo.InvariantCulture) : start;
         if (start <= 0 || end <= 0 || end < start)
         {
             error = $"codeRefs entry '{codeRef}' has invalid line numbers.";

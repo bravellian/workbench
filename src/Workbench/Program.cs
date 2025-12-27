@@ -83,7 +83,7 @@ static void HandleDocCreate(
             codeRefs.ToList(),
             force);
 
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new DocCreateOutput(
                 true,
@@ -98,7 +98,7 @@ static void HandleDocCreate(
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex.ToString());
         SetExitCode(2);
     }
 }
@@ -219,6 +219,7 @@ doctorCommand.SetAction(parseResult =>
                 hasWarnings = true;
             }
         }
+#pragma warning disable ERP022
         catch (Exception)
         {
             checks.Add(new DoctorCheck(
@@ -233,6 +234,7 @@ doctorCommand.SetAction(parseResult =>
                     SchemaErrors: null)));
             hasWarnings = true;
         }
+#pragma warning restore ERP022
 
         checks.Add(new DoctorCheck(
             "repo",
@@ -296,7 +298,7 @@ doctorCommand.SetAction(parseResult =>
         }
 
         var ghStatus = GithubService.CheckAuthStatus(repoRoot);
-        if (ghStatus.Status == "ok")
+        if (string.Equals(ghStatus.Status, "ok", StringComparison.OrdinalIgnoreCase))
         {
             checks.Add(new DoctorCheck(
                 "gh",
@@ -324,7 +326,7 @@ doctorCommand.SetAction(parseResult =>
             hasWarnings = true;
         }
 
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new DoctorOutput(
                 !hasError,
@@ -350,7 +352,7 @@ doctorCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -373,7 +375,7 @@ scaffoldCommand.SetAction(parseResult =>
         var repoRoot = ResolveRepo(repo);
         var resolvedFormat = ResolveFormat(format);
         var result = ScaffoldService.Scaffold(repoRoot, force);
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new ScaffoldOutput(
                 true,
@@ -404,7 +406,7 @@ scaffoldCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -421,7 +423,7 @@ configShowCommand.SetAction(parseResult =>
         var repoRoot = ResolveRepo(repo);
         var resolvedFormat = ResolveFormat(format);
         var config = WorkbenchConfig.Load(repoRoot, out var configError);
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new ConfigOutput(
                 configError is null,
@@ -443,7 +445,7 @@ configShowCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -527,7 +529,7 @@ itemNewCommand.SetAction(parseResult =>
             return;
         }
         var result = WorkItemService.CreateItem(repoRoot, config, type, title, status, priority, owner);
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new ItemCreateOutput(
                 true,
@@ -542,7 +544,7 @@ itemNewCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -595,7 +597,7 @@ itemListCommand.SetAction(parseResult =>
             items = items.Where(item => item.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payloadItems = items
                 .Select(item => new ItemSummary(item.Id, item.Type, item.Status, item.Title, item.Path))
@@ -607,7 +609,7 @@ itemListCommand.SetAction(parseResult =>
         }
         else
         {
-            foreach (var item in items.OrderBy(item => item.Id))
+            foreach (var item in items.OrderBy(item => item.Id, StringComparer.OrdinalIgnoreCase))
             {
                 Console.WriteLine($"{item.Id}\t{item.Status}\t{item.Title}");
             }
@@ -616,7 +618,7 @@ itemListCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -646,7 +648,7 @@ itemShowCommand.SetAction(parseResult =>
         }
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var item = WorkItemService.LoadItem(path) ?? throw new InvalidOperationException("Invalid work item.");
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new ItemShowOutput(
                 true,
@@ -664,7 +666,7 @@ itemShowCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -706,7 +708,7 @@ itemStatusCommand.SetAction(parseResult =>
         }
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var updated = WorkItemService.UpdateStatus(path, status, note);
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new ItemStatusOutput(
                 true,
@@ -721,7 +723,7 @@ itemStatusCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -766,7 +768,7 @@ itemCloseCommand.SetAction(parseResult =>
                 LinkUpdater.UpdateLinks(repoRoot, oldPath, newPath);
             }
         }
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new ItemCloseOutput(
                 true,
@@ -781,7 +783,7 @@ itemCloseCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -819,7 +821,7 @@ itemMoveCommand.SetAction(parseResult =>
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var updated = WorkItemService.Move(path, to, repoRoot);
         LinkUpdater.UpdateLinks(repoRoot, path, updated.Path);
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new ItemMoveOutput(
                 true,
@@ -834,7 +836,7 @@ itemMoveCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -872,7 +874,7 @@ itemRenameCommand.SetAction(parseResult =>
         var path = WorkItemService.GetItemPathById(repoRoot, config, id);
         var updated = WorkItemService.Rename(path, title, config, repoRoot);
         LinkUpdater.UpdateLinks(repoRoot, path, updated.Path);
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new ItemRenameOutput(
                 true,
@@ -887,7 +889,7 @@ itemRenameCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -927,7 +929,7 @@ Command BuildAddCommand(string typeName)
                 return;
             }
             var result = WorkItemService.CreateItem(repoRoot, config, typeName, title, status, priority, owner);
-            if (resolvedFormat == "json")
+            if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
             {
                 var payload = new ItemCreateOutput(
                     true,
@@ -942,7 +944,7 @@ Command BuildAddCommand(string typeName)
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            Console.WriteLine(ex);
             SetExitCode(2);
         }
     });
@@ -971,7 +973,7 @@ boardRegenCommand.SetAction(parseResult =>
             return;
         }
         var result = WorkboardService.Regenerate(repoRoot, config);
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new BoardOutput(
                 true,
@@ -986,7 +988,7 @@ boardRegenCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -1092,7 +1094,7 @@ promoteCommand.SetAction(parseResult =>
             prUrl = CreatePr(repoRoot, config, item, baseBranch, useDraft, fill: true);
         }
 
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new PromoteOutput(
                 true,
@@ -1116,7 +1118,7 @@ promoteCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -1167,7 +1169,7 @@ prCreateCommand.SetAction(parseResult =>
         var item = WorkItemService.LoadItem(path) ?? throw new InvalidOperationException("Invalid work item.");
         var prUrl = CreatePr(repoRoot, config, item, baseBranch, draft, fill);
 
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new PrOutput(
                 true,
@@ -1182,7 +1184,7 @@ prCreateCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -1218,7 +1220,7 @@ createPrCommand.SetAction(parseResult =>
         var item = WorkItemService.LoadItem(path) ?? throw new InvalidOperationException("Invalid work item.");
         var prUrl = CreatePr(repoRoot, config, item, baseBranch, draft, fill);
 
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new PrOutput(
                 true,
@@ -1233,7 +1235,7 @@ createPrCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -1322,7 +1324,7 @@ docSyncCommand.SetAction(parseResult =>
         }
 
         var result = DocService.SyncLinks(repoRoot, config, all, dryRun);
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new DocSyncOutput(
                 true,
@@ -1358,7 +1360,7 @@ docSyncCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
@@ -1439,9 +1441,31 @@ validateCommand.SetAction(parseResult =>
             return;
         }
         var result = ValidationService.ValidateRepo(repoRoot, config);
-        var exit = result.Errors.Count > 0 ? 2 : result.Warnings.Count > 0 ? (strict ? 2 : 1) : 0;
+        int exit;
+        if (result.Errors.Count > 0)
+        {
+            exit = 2;
+        }
+        else
+        {
+            if (result.Warnings.Count > 0)
+            {
+                if (strict)
+                {
+                    exit = 2;
+                }
+                else
+                {
+                    exit = 1;
+                }
+            }
+            else
+            {
+                exit = 0;
+            }
+        }
 
-        if (resolvedFormat == "json")
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new ValidateOutput(
                 result.Errors.Count == 0,
@@ -1487,11 +1511,11 @@ validateCommand.SetAction(parseResult =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex);
         SetExitCode(2);
     }
 });
 root.Subcommands.Add(validateCommand);
 
-var exitCode = root.Parse(args).Invoke();
+var exitCode = await root.Parse(args).InvokeAsync().ConfigureAwait(false);
 return Environment.ExitCode != 0 ? Environment.ExitCode : exitCode;
