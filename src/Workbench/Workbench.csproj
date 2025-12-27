@@ -12,6 +12,7 @@
     <PackageId>Bravellian.Workbench</PackageId>
     <Version>0.1.0</Version>
     <PackageVersion>0.1.0</PackageVersion>
+    <IsPackable>true</IsPackable>
 
     <PublishAot>false</PublishAot>
     <PublishTrimmed>false</PublishTrimmed>
