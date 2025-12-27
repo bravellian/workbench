@@ -68,7 +68,7 @@ public static class DocService
         return new DocCreateResult(docPath, type, workItems);
     }
 
-    public static DocSyncResult SyncLinks(string repoRoot, WorkbenchConfig config, bool includeAllDocs, bool dryRun)
+    public static DocSyncResult SyncLinks(string repoRoot, WorkbenchConfig config, bool includeAllDocs, bool syncIssues, bool dryRun)
     {
         var itemsUpdated = 0;
         var docsUpdated = 0;
@@ -127,6 +127,11 @@ public static class DocService
         foreach (var item in itemsById.Values)
         {
             docsUpdated += SyncDocLinksForItem(repoRoot, item, missingDocs, dryRun);
+        }
+
+        if (syncIssues)
+        {
+            itemsUpdated += WorkItemService.SyncIssueLinks(repoRoot, config, itemsById.Values, dryRun);
         }
 
         return new DocSyncResult(docsUpdated, itemsUpdated, missingDocs, missingItems);

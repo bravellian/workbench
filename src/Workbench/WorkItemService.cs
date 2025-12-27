@@ -80,6 +80,49 @@ public static class WorkItemService
         return new WorkItemResult(id, slug, itemPath);
     }
 
+    public static WorkItem CreateItemFromGithubIssue(
+        string repoRoot,
+        WorkbenchConfig config,
+        GithubIssue issue,
+        string type,
+        string status,
+        string? priority,
+        string? owner)
+    {
+        var created = CreateItem(repoRoot, config, type, issue.Title, status, priority, owner);
+        var content = File.ReadAllText(created.Path);
+        if (!FrontMatter.TryParse(content, out var frontMatter, out var error))
+        {
+            throw new InvalidOperationException($"Front matter error: {error}");
+        }
+
+        var data = frontMatter!.Data;
+        if (issue.Labels.Count > 0)
+        {
+            data["tags"] = issue.Labels.ToList();
+        }
+
+        var related = GetRelatedMap(data);
+        if (related is not null)
+        {
+            var issues = EnsureList(related, "issues");
+            AddUniqueLink(issues, issue.Url);
+
+            var prs = EnsureList(related, "prs");
+            foreach (var pr in issue.PullRequests)
+            {
+                AddUniqueLink(prs, pr);
+            }
+        }
+
+        var summary = BuildIssueSummary(issue);
+        var body = ReplaceSection(frontMatter.Body, "Summary", summary);
+        frontMatter = new FrontMatter(data, body);
+        File.WriteAllText(created.Path, frontMatter.Serialize());
+
+        return LoadItem(created.Path) ?? throw new InvalidOperationException("Failed to reload work item.");
+    }
+
     public static WorkItemListResult ListItems(string repoRoot, WorkbenchConfig config, bool includeDone)
     {
         var items = new List<WorkItem>();
@@ -92,6 +135,75 @@ public static class WorkItemService
             }
         }
         return new WorkItemListResult(items);
+    }
+
+    public static int SyncIssueLinks(string repoRoot, WorkbenchConfig config, IEnumerable<WorkItem> items, bool dryRun)
+    {
+        var itemsWithIssues = items.Where(item => item.Related.Issues.Count > 0).ToList();
+        if (itemsWithIssues.Count == 0)
+        {
+            return 0;
+        }
+
+        var defaultRepo = GithubService.ResolveRepo(repoRoot, config);
+        var issueCache = new Dictionary<string, GithubIssue>(StringComparer.OrdinalIgnoreCase);
+        var updatedCount = 0;
+
+        foreach (var item in itemsWithIssues)
+        {
+            var content = File.ReadAllText(item.Path);
+            if (!FrontMatter.TryParse(content, out var frontMatter, out var error))
+            {
+                throw new InvalidOperationException($"Front matter error: {error}");
+            }
+
+            var data = frontMatter!.Data;
+            var related = GetRelatedMap(data);
+            if (related is null)
+            {
+                related = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                data["related"] = related;
+            }
+
+            var issues = EnsureList(related, "issues");
+            var prs = EnsureList(related, "prs");
+            var changed = false;
+
+            foreach (var entry in item.Related.Issues.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var issueRef = GithubService.ParseIssueReference(entry, defaultRepo);
+                var key = $"{issueRef.Repo.Display}#{issueRef.Number.ToString(CultureInfo.InvariantCulture)}";
+                if (!issueCache.TryGetValue(key, out var issue))
+                {
+                    issue = GithubService.FetchIssue(repoRoot, issueRef);
+                    issueCache[key] = issue;
+                }
+
+                if (AddUniqueLink(issues, issue.Url))
+                {
+                    changed = true;
+                }
+
+                foreach (var pr in issue.PullRequests)
+                {
+                    if (AddUniqueLink(prs, pr))
+                    {
+                        changed = true;
+                    }
+                }
+            }
+
+            if (changed)
+            {
+                if (!dryRun)
+                {
+                    File.WriteAllText(item.Path, frontMatter.Serialize());
+                }
+                updatedCount++;
+            }
+        }
+
+        return updatedCount;
     }
 
     public static WorkItem? LoadItem(string path)
@@ -415,6 +527,82 @@ public static class WorkItemService
         }
         lines.Insert(insertIndex, $"- {note}");
         return string.Join("\n", lines);
+    }
+
+    private static string ReplaceSection(string body, string heading, string content)
+    {
+        var lines = body.Replace("\r\n", "\n").Split('\n').ToList();
+        var start = lines.FindIndex(line => line.Trim().Equals($"## {heading}", StringComparison.OrdinalIgnoreCase));
+        var contentLines = content.Replace("\r\n", "\n").Split('\n').ToList();
+        if (start == -1)
+        {
+            if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[^1]))
+            {
+                lines.Add(string.Empty);
+            }
+            lines.Add($"## {heading}");
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                lines.Add(string.Empty);
+                lines.AddRange(contentLines);
+            }
+            return string.Join("\n", lines);
+        }
+
+        var end = start + 1;
+        while (end < lines.Count && !lines[end].TrimStart().StartsWith("## ", StringComparison.Ordinal))
+        {
+            end++;
+        }
+
+        var updated = new List<string>();
+        updated.AddRange(lines.Take(start + 1));
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            updated.Add(string.Empty);
+            updated.AddRange(contentLines);
+        }
+        if (end < lines.Count)
+        {
+            if (updated.Count > 0 && !string.IsNullOrWhiteSpace(updated[^1]))
+            {
+                updated.Add(string.Empty);
+            }
+            updated.AddRange(lines.Skip(end));
+        }
+        return string.Join("\n", updated);
+    }
+
+    private static string BuildIssueSummary(GithubIssue issue)
+    {
+        var lines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(issue.Url))
+        {
+            lines.Add($"Imported from GitHub issue: {issue.Url}");
+        }
+        if (!string.IsNullOrWhiteSpace(issue.Body))
+        {
+            if (lines.Count > 0)
+            {
+                lines.Add(string.Empty);
+            }
+            lines.AddRange(issue.Body.Replace("\r\n", "\n").Split('\n'));
+        }
+        return string.Join("\n", lines);
+    }
+
+    private static bool AddUniqueLink(List<object?> list, string link)
+    {
+        if (string.IsNullOrWhiteSpace(link))
+        {
+            return false;
+        }
+        if (!list.OfType<string>().Any(entry => entry.Equals(link, StringComparison.OrdinalIgnoreCase)))
+        {
+            list.Add(link);
+            return true;
+        }
+        return false;
     }
 
     private static string? GetString(IDictionary<string, object?> data, string key)

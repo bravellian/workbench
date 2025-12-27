@@ -78,6 +78,11 @@
               "version": "[2.0.264, )",
               "versionCentrallyManaged": true
             },
+            "Microsoft.Agents.AI.OpenAI": {
+              "target": "Package",
+              "version": "[1.0.0-preview.251219.1, )",
+              "versionCentrallyManaged": true
+            },
             "Microsoft.CodeAnalysis.BannedApiAnalyzers": {
               "include": "Runtime, Build, Native, ContentFiles, Analyzers",
               "suppressParent": "All",
@@ -158,6 +163,7 @@
             "LibGit2Sharp": "0.31.0",
             "Markdig": "0.44.0",
             "Meziantou.Analyzer": "2.0.264",
+            "Microsoft.Agents.AI.OpenAI": "1.0.0-preview.251219.1",
             "Microsoft.CodeAnalysis.BannedApiAnalyzers": "4.14.0",
             "Microsoft.CodeCoverage": "18.0.1",
             "Microsoft.NET.Test.Sdk": "18.0.1",

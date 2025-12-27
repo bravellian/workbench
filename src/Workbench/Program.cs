@@ -233,6 +233,41 @@ static string CreatePr(
     return prUrl;
 }
 
+static string ResolveIssueType(GithubIssue issue, string? overrideType)
+{
+    if (!string.IsNullOrWhiteSpace(overrideType))
+    {
+        return overrideType;
+    }
+
+    bool HasLabel(string token)
+    {
+        return issue.Labels.Any(label =>
+            label.Equals(token, StringComparison.OrdinalIgnoreCase)
+            || label.Contains(token, StringComparison.OrdinalIgnoreCase));
+    }
+
+    if (HasLabel("bug"))
+    {
+        return "bug";
+    }
+    if (HasLabel("spike"))
+    {
+        return "spike";
+    }
+    return "task";
+}
+
+static string ResolveIssueStatus(GithubIssue issue, string? overrideStatus)
+{
+    if (!string.IsNullOrWhiteSpace(overrideStatus))
+    {
+        return overrideStatus;
+    }
+
+    return string.Equals(issue.State, "closed", StringComparison.OrdinalIgnoreCase) ? "done" : "ready";
+}
+
 var repoOption = new Option<string?>("--repo")
 {
     Description = "Target repo (defaults to current dir)"
@@ -655,6 +690,98 @@ itemNewCommand.SetAction(parseResult =>
     }
 });
 itemCommand.Subcommands.Add(itemNewCommand);
+
+var itemImportCommand = new Command("import", "Import GitHub issues into work items.");
+var importIssueOption = new Option<string[]>("--issue")
+{
+    Description = "Issue numbers or URLs to import.",
+    Required = true
+};
+var importTypeOption = new Option<string?>("--type")
+{
+    Description = "Work item type: bug, task, spike (defaults based on labels)."
+};
+importTypeOption.CompletionSources.Add("bug", "task", "spike");
+var importStatusOption = CreateStatusOption();
+var importPriorityOption = CreatePriorityOption();
+var importOwnerOption = CreateOwnerOption();
+itemImportCommand.Options.Add(importIssueOption);
+itemImportCommand.Options.Add(importTypeOption);
+itemImportCommand.Options.Add(importStatusOption);
+itemImportCommand.Options.Add(importPriorityOption);
+itemImportCommand.Options.Add(importOwnerOption);
+itemImportCommand.SetAction(parseResult =>
+{
+    try
+    {
+        var repo = parseResult.GetValue(repoOption);
+        var format = parseResult.GetValue(formatOption) ?? "table";
+        var issueInputs = parseResult.GetValue(importIssueOption) ?? Array.Empty<string>();
+        var typeOverride = parseResult.GetValue(importTypeOption);
+        var statusOverride = parseResult.GetValue(importStatusOption);
+        var priority = parseResult.GetValue(importPriorityOption);
+        var owner = parseResult.GetValue(importOwnerOption);
+        if (issueInputs.Length == 0)
+        {
+            Console.WriteLine("No issues provided.");
+            SetExitCode(2);
+            return;
+        }
+
+        var repoRoot = ResolveRepo(repo);
+        var resolvedFormat = ResolveFormat(format);
+        var config = WorkbenchConfig.Load(repoRoot, out var configError);
+        if (configError is not null)
+        {
+            Console.WriteLine($"Config error: {configError}");
+            SetExitCode(2);
+            return;
+        }
+
+        var defaultRepo = GithubService.ResolveRepo(repoRoot, config);
+        var imported = new List<ItemImportEntry>();
+
+        foreach (var input in issueInputs)
+        {
+            var issueRef = GithubService.ParseIssueReference(input, defaultRepo);
+            var issue = GithubService.FetchIssue(repoRoot, issueRef);
+            var type = ResolveIssueType(issue, typeOverride);
+            var status = ResolveIssueStatus(issue, statusOverride);
+            var item = WorkItemService.CreateItemFromGithubIssue(repoRoot, config, issue, type, status, priority, owner);
+            var issuePayload = new GithubIssuePayload(
+                issue.Repo.Display,
+                issue.Number,
+                issue.Url,
+                issue.Title,
+                issue.State,
+                issue.Labels,
+                issue.PullRequests);
+            imported.Add(new ItemImportEntry(issuePayload, ItemToPayload(item)));
+        }
+
+        if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+        {
+            var payload = new ItemImportOutput(
+                true,
+                new ItemImportData(imported));
+            WriteJson(payload, WorkbenchJsonContext.Default.ItemImportOutput);
+        }
+        else
+        {
+            foreach (var entry in imported)
+            {
+                Console.WriteLine($"Imported {entry.Issue.Repo}#{entry.Issue.Number}: {entry.Item.Id} - {entry.Item.Title}");
+            }
+        }
+        SetExitCode(0);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex);
+        SetExitCode(2);
+    }
+});
+itemCommand.Subcommands.Add(itemImportCommand);
 
 var itemListCommand = new Command("list", "List work items.");
 var listTypeOption = new Option<string>("--type")
@@ -1695,11 +1822,16 @@ var docSyncAllOption = new Option<bool>("--all")
 {
     Description = "Add Workbench front matter to all docs."
 };
+var docSyncIssuesOption = new Option<bool>("--issues")
+{
+    Description = "Sync GitHub issue links for work items."
+};
 var docSyncDryRunOption = new Option<bool>("--dry-run")
 {
     Description = "Report changes without writing files."
 };
 docSyncCommand.Options.Add(docSyncAllOption);
+docSyncCommand.Options.Add(docSyncIssuesOption);
 docSyncCommand.Options.Add(docSyncDryRunOption);
 docSyncCommand.SetAction(parseResult =>
 {
@@ -1708,6 +1840,7 @@ docSyncCommand.SetAction(parseResult =>
         var repo = parseResult.GetValue(repoOption);
         var format = parseResult.GetValue(formatOption) ?? "table";
         var all = parseResult.GetValue(docSyncAllOption);
+        var syncIssues = parseResult.GetValue(docSyncIssuesOption);
         var dryRun = parseResult.GetValue(docSyncDryRunOption);
         var repoRoot = ResolveRepo(repo);
         var resolvedFormat = ResolveFormat(format);
@@ -1719,7 +1852,7 @@ docSyncCommand.SetAction(parseResult =>
             return;
         }
 
-        var result = DocService.SyncLinks(repoRoot, config, all, dryRun);
+        var result = DocService.SyncLinks(repoRoot, config, all, syncIssues, dryRun);
         if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
         {
             var payload = new DocSyncOutput(

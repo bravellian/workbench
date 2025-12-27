@@ -133,6 +133,28 @@ Data:
 { "item": { /* WorkItem */ } }
 ```
 
+## workbench item import
+
+Data:
+```json
+{
+  "items": [
+    {
+      "issue": {
+        "repo": "org/repo",
+        "number": 42,
+        "url": "https://github.com/org/repo/issues/42",
+        "title": "Add docs",
+        "state": "OPEN",
+        "labels": ["docs"],
+        "pullRequests": ["https://github.com/org/repo/pull/100"]
+      },
+      "item": { /* WorkItem */ }
+    }
+  ]
+}
+```
+
 ## workbench item list
 
 Data:

@@ -71,6 +71,9 @@ Commands:
 - `workbench item new --type <bug|task|spike> --title "<...>" [--status <...>] [--priority <...>] [--owner <...>]`
   - Create a new work item in `work/items` using templates and ID allocation.
   - Example: `workbench item new --type task --title "Add promote command"`
+- `workbench item import --issue <id|url...> [--type <bug|task|spike>] [--status <...>] [--priority <...>] [--owner <...>]`
+  - Import GitHub issues into work items, linking related PRs when available.
+  - Example: `workbench item import --issue 42 --issue https://github.com/org/repo/issues/18`
 
 - `workbench add task --title "<...>" [--status <...>] [--priority <...>] [--owner <...>]`
   - Alias for `workbench item new --type task`.
@@ -124,9 +127,9 @@ Commands:
   - Create a documentation file with Workbench front matter and optional backlinks.
   - Example: `workbench doc new --type spec --title "Payment flow" --work-item TASK-0042`
 
-- `workbench doc sync [--all] [--dry-run]`
-  - Sync doc/work item backlinks. `--all` adds Workbench front matter to all docs; `--dry-run` reports changes without writing.
-  - Example: `workbench doc sync --all --dry-run`
+- `workbench doc sync [--all] [--issues] [--dry-run]`
+  - Sync doc/work item backlinks. `--all` adds Workbench front matter to all docs; `--issues` syncs GitHub issue links; `--dry-run` reports changes without writing.
+  - Example: `workbench doc sync --all --issues --dry-run`
 
 - `workbench doc summarize [--staged] [--path <path...>] [--dry-run] [--update-index]`
   - Summarize markdown diffs using AI and append `workbench.changeNotes` entries.

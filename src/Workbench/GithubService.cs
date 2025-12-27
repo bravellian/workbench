@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Text.Json;
 
 namespace Workbench;
 
@@ -28,7 +30,7 @@ public static class GithubService
         return new CommandResult(process.ExitCode, stdout.Trim(), stderr.Trim());
     }
 
-    public static AuthStatus CheckAuthStatus(string repoRoot)
+    public static AuthStatus CheckAuthStatus(string repoRoot, string? host = null)
     {
         try
         {
@@ -39,7 +41,13 @@ public static class GithubService
                 return new AuthStatus("warn", versionResult.StdErr.Length > 0 ? versionResult.StdErr : "gh --version failed.", version);
             }
 
-            var authResult = Run(repoRoot, "auth", "status");
+            var authArgs = new List<string> { "auth", "status" };
+            if (!string.IsNullOrWhiteSpace(host) && !string.Equals(host, "github.com", StringComparison.OrdinalIgnoreCase))
+            {
+                authArgs.Add("--hostname");
+                authArgs.Add(host);
+            }
+            var authResult = Run(repoRoot, authArgs.ToArray());
             if (authResult.ExitCode != 0)
             {
                 var reason = authResult.StdErr.Length > 0 ? authResult.StdErr : "gh auth status failed.";
@@ -56,12 +64,12 @@ public static class GithubService
         }
     }
 
-    public static void EnsureAuthenticated(string repoRoot)
+    public static void EnsureAuthenticated(string repoRoot, string? host = null)
     {
         AuthStatus status;
         try
         {
-            status = CheckAuthStatus(repoRoot);
+            status = CheckAuthStatus(repoRoot, host);
         }
         catch (Exception ex)
         {
@@ -77,6 +85,210 @@ public static class GithubService
         {
             throw new InvalidOperationException("gh is installed but not authenticated. Run `gh auth login`.");
         }
+    }
+
+    public static GithubRepoRef ResolveRepo(string repoRoot, WorkbenchConfig config)
+    {
+        var repoFromGit = TryResolveRepoFromGit(repoRoot);
+        if (repoFromGit is not null)
+        {
+            return repoFromGit;
+        }
+
+        if (!string.IsNullOrWhiteSpace(config.Github.Owner) && !string.IsNullOrWhiteSpace(config.Github.Repository))
+        {
+            var host = string.IsNullOrWhiteSpace(config.Github.Host) ? "github.com" : config.Github.Host;
+            return new GithubRepoRef(host, config.Github.Owner, config.Github.Repository);
+        }
+
+        throw new InvalidOperationException("Unable to resolve GitHub repository. Configure github.owner and github.repository in .workbench/config.json or set remote.origin.url.");
+    }
+
+    public static GithubIssueRef ParseIssueReference(string input, GithubRepoRef defaultRepo)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            throw new InvalidOperationException("Issue reference is empty.");
+        }
+
+        var trimmed = input.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
+        {
+            var segments = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length >= 4 && string.Equals(segments[2], "issues", StringComparison.OrdinalIgnoreCase))
+            {
+                if (int.TryParse(segments[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+                {
+                    return new GithubIssueRef(new GithubRepoRef(uri.Host, segments[0], segments[1]), number);
+                }
+            }
+            throw new InvalidOperationException($"Unsupported issue URL: {input}");
+        }
+
+        var hashIndex = trimmed.IndexOf('#', StringComparison.Ordinal);
+        if (hashIndex > 0)
+        {
+            var repoPart = trimmed[..hashIndex];
+            var numberPart = trimmed[(hashIndex + 1)..];
+            if (int.TryParse(numberPart, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+            {
+                var repoParts = repoPart.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                if (repoParts.Length == 2)
+                {
+                    return new GithubIssueRef(new GithubRepoRef(defaultRepo.Host, repoParts[0], repoParts[1]), number);
+                }
+            }
+        }
+
+        var numberText = trimmed.TrimStart('#');
+        if (int.TryParse(numberText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var simpleNumber))
+        {
+            return new GithubIssueRef(defaultRepo, simpleNumber);
+        }
+
+        throw new InvalidOperationException($"Invalid issue reference: {input}");
+    }
+
+    public static GithubIssue FetchIssue(string repoRoot, GithubIssueRef issueRef)
+    {
+        EnsureAuthenticated(repoRoot, issueRef.Repo.Host);
+
+        const string query = """
+            query($owner: String!, $name: String!, $number: Int!) {
+              repository(owner: $owner, name: $name) {
+                issue(number: $number) {
+                  number
+                  title
+                  body
+                  url
+                  state
+                  labels(first: 100) { nodes { name } }
+                  timelineItems(first: 100, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT, CLOSED_EVENT]) {
+                    nodes {
+                      __typename
+                      ... on CrossReferencedEvent {
+                        source {
+                          __typename
+                          ... on PullRequest { url }
+                        }
+                      }
+                      ... on ConnectedEvent {
+                        subject {
+                          __typename
+                          ... on PullRequest { url }
+                        }
+                      }
+                      ... on ClosedEvent {
+                        closer {
+                          __typename
+                          ... on PullRequest { url }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+
+        var args = new List<string> { "api" };
+        if (!string.IsNullOrWhiteSpace(issueRef.Repo.Host) && !string.Equals(issueRef.Repo.Host, "github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            args.Add("--hostname");
+            args.Add(issueRef.Repo.Host);
+        }
+        args.AddRange(new[]
+        {
+            "graphql",
+            "-f", $"query={query}",
+            "-f", $"owner={issueRef.Repo.Owner}",
+            "-f", $"name={issueRef.Repo.Repo}",
+            "-F", $"number={issueRef.Number.ToString(CultureInfo.InvariantCulture)}",
+        });
+
+        var result = Run(repoRoot, args.ToArray());
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException(result.StdErr.Length > 0 ? result.StdErr : "gh api graphql failed.");
+        }
+
+        using var document = JsonDocument.Parse(result.StdOut);
+        if (!document.RootElement.TryGetProperty("data", out var data)
+            || !data.TryGetProperty("repository", out var repoElement)
+            || !repoElement.TryGetProperty("issue", out var issueElement)
+            || issueElement.ValueKind == JsonValueKind.Null)
+        {
+            throw new InvalidOperationException($"Issue not found: {issueRef.Repo.Owner}/{issueRef.Repo.Repo}#{issueRef.Number}");
+        }
+
+        var title = issueElement.GetProperty("title").GetString() ?? string.Empty;
+        var body = issueElement.GetProperty("body").GetString() ?? string.Empty;
+        var url = issueElement.GetProperty("url").GetString() ?? string.Empty;
+        var state = issueElement.GetProperty("state").GetString() ?? string.Empty;
+
+        var labels = new List<string>();
+        if (issueElement.TryGetProperty("labels", out var labelsElement)
+            && labelsElement.TryGetProperty("nodes", out var labelNodes)
+            && labelNodes.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var label in labelNodes.EnumerateArray())
+            {
+                if (label.TryGetProperty("name", out var labelName))
+                {
+                    var value = labelName.GetString();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        labels.Add(value);
+                    }
+                }
+            }
+        }
+
+        var pullRequests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (issueElement.TryGetProperty("timelineItems", out var timeline)
+            && timeline.TryGetProperty("nodes", out var timelineNodes)
+            && timelineNodes.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var node in timelineNodes.EnumerateArray())
+            {
+                if (!node.TryGetProperty("__typename", out var typeElement))
+                {
+                    continue;
+                }
+                var type = typeElement.GetString();
+                if (string.IsNullOrWhiteSpace(type))
+                {
+                    continue;
+                }
+
+                JsonElement? prElement = type switch
+                {
+                    "CrossReferencedEvent" => TryGetPullRequestElement(node, "source"),
+                    "ConnectedEvent" => TryGetPullRequestElement(node, "subject"),
+                    "ClosedEvent" => TryGetPullRequestElement(node, "closer"),
+                    _ => null,
+                };
+
+                if (prElement is { ValueKind: JsonValueKind.Object } && prElement.Value.TryGetProperty("url", out var prUrl))
+                {
+                    var value = prUrl.GetString();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        pullRequests.Add(value);
+                    }
+                }
+            }
+        }
+
+        return new GithubIssue(
+            issueRef.Repo,
+            issueRef.Number,
+            title,
+            body,
+            url,
+            state,
+            labels,
+            pullRequests.ToList());
     }
 
     public static string CreatePullRequest(string repoRoot, string title, string body, string? baseBranch, bool draft)
@@ -100,5 +312,64 @@ public static class GithubService
             throw new InvalidOperationException(result.StdErr.Length > 0 ? result.StdErr : "gh pr create failed.");
         }
         return result.StdOut.Trim();
+    }
+
+    private static GithubRepoRef? TryResolveRepoFromGit(string repoRoot)
+    {
+        var remote = GitService.Run(repoRoot, "config", "--get", "remote.origin.url");
+        if (remote.ExitCode != 0 || string.IsNullOrWhiteSpace(remote.StdOut))
+        {
+            return null;
+        }
+        return TryParseRepoUrl(remote.StdOut.Trim());
+    }
+
+    private static GithubRepoRef? TryParseRepoUrl(string url)
+    {
+        if (url.StartsWith("git@", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = url.Split(':', 2);
+            if (parts.Length != 2)
+            {
+                return null;
+            }
+            var host = parts[0].Substring("git@".Length);
+            return ParseRepoPath(host, parts[1]);
+        }
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return ParseRepoPath(uri.Host, uri.AbsolutePath);
+        }
+
+        return null;
+    }
+
+    private static GithubRepoRef? ParseRepoPath(string host, string path)
+    {
+        var trimmed = path.Trim().Trim('/');
+        if (trimmed.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = trimmed[..^4];
+        }
+
+        var parts = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2)
+        {
+            return null;
+        }
+        return new GithubRepoRef(host, parts[0], parts[1]);
+    }
+
+    private static JsonElement? TryGetPullRequestElement(JsonElement node, string property)
+    {
+        if (node.TryGetProperty(property, out var element)
+            && element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty("__typename", out var typeElement)
+            && string.Equals(typeElement.GetString(), "PullRequest", StringComparison.OrdinalIgnoreCase))
+        {
+            return element;
+        }
+        return null;
     }
 }

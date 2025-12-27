@@ -4,5 +4,8 @@ namespace Workbench
     {
         public string Provider { get; init; } = "gh";
         public bool DefaultDraft { get; init; } = false;
+        public string Host { get; init; } = "github.com";
+        public string? Owner { get; init; }
+        public string? Repository { get; init; }
     }
 }

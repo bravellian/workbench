@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "gA+kJ3Y3O0E=",
+  "dgSpecHash": "199XGm5BcP4=",
   "success": true,
   "projectFilePath": "/Users/samuel/src/bravellian/workbench/tests/Workbench.Tests/Workbench.Tests.csproj",
   "expectedPackageFiles": [
@@ -15,11 +15,22 @@
     "/Users/samuel/.nuget/packages/jsonpointer.net/5.3.1/jsonpointer.net.5.3.1.nupkg.sha512",
     "/Users/samuel/.nuget/packages/jsonschema.net/7.3.2/jsonschema.net.7.3.2.nupkg.sha512",
     "/Users/samuel/.nuget/packages/meziantou.analyzer/2.0.264/meziantou.analyzer.2.0.264.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.agents.ai/1.0.0-preview.251219.1/microsoft.agents.ai.1.0.0-preview.251219.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.agents.ai.abstractions/1.0.0-preview.251219.1/microsoft.agents.ai.abstractions.1.0.0-preview.251219.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.agents.ai.openai/1.0.0-preview.251219.1/microsoft.agents.ai.openai.1.0.0-preview.251219.1.nupkg.sha512",
     "/Users/samuel/.nuget/packages/microsoft.applicationinsights/2.23.0/microsoft.applicationinsights.2.23.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/microsoft.build.tasks.git/8.0.0/microsoft.build.tasks.git.8.0.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/microsoft.codeanalysis.bannedapianalyzers/4.14.0/microsoft.codeanalysis.bannedapianalyzers.4.14.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/microsoft.diasymreader/2.0.0/microsoft.diasymreader.2.0.0.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.extensions.ai/10.1.1/microsoft.extensions.ai.10.1.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.extensions.ai.abstractions/10.1.1/microsoft.extensions.ai.abstractions.10.1.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.extensions.ai.openai/10.1.1-preview.1.25612.2/microsoft.extensions.ai.openai.10.1.1-preview.1.25612.2.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.extensions.caching.abstractions/10.0.1/microsoft.extensions.caching.abstractions.10.0.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/10.0.1/microsoft.extensions.dependencyinjection.abstractions.10.0.1.nupkg.sha512",
     "/Users/samuel/.nuget/packages/microsoft.extensions.dependencymodel/6.0.2/microsoft.extensions.dependencymodel.6.0.2.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.extensions.logging.abstractions/10.0.1/microsoft.extensions.logging.abstractions.10.0.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.extensions.primitives/10.0.1/microsoft.extensions.primitives.10.0.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/microsoft.extensions.vectordata.abstractions/9.7.0/microsoft.extensions.vectordata.abstractions.9.7.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/microsoft.sourcelink.common/8.0.0/microsoft.sourcelink.common.8.0.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/microsoft.sourcelink.github/8.0.0/microsoft.sourcelink.github.8.0.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/microsoft.testing.extensions.codecoverage/18.1.0/microsoft.testing.extensions.codecoverage.18.1.0.nupkg.sha512",
@@ -37,12 +48,16 @@
     "/Users/samuel/.nuget/packages/mstest.testframework/4.0.2/mstest.testframework.4.0.2.nupkg.sha512",
     "/Users/samuel/.nuget/packages/nsubstitute/5.3.0/nsubstitute.5.3.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/nsubstitute.analyzers.csharp/1.0.17/nsubstitute.analyzers.csharp.1.0.17.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/openai/2.8.0/openai.2.8.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/roslynator.analyzers/4.15.0/roslynator.analyzers.4.15.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/roslynator.codeanalysis.analyzers/4.15.0/roslynator.codeanalysis.analyzers.4.15.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/roslynator.formatting.analyzers/4.15.0/roslynator.formatting.analyzers.4.15.0.nupkg.sha512",
     "/Users/samuel/.nuget/packages/sonaranalyzer.csharp/10.16.1.129956/sonaranalyzer.csharp.10.16.1.129956.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/system.clientmodel/1.8.1/system.clientmodel.1.8.1.nupkg.sha512",
     "/Users/samuel/.nuget/packages/system.commandline/2.0.1/system.commandline.2.0.1.nupkg.sha512",
-    "/Users/samuel/.nuget/packages/system.diagnostics.eventlog/6.0.0/system.diagnostics.eventlog.6.0.0.nupkg.sha512"
+    "/Users/samuel/.nuget/packages/system.diagnostics.eventlog/6.0.0/system.diagnostics.eventlog.6.0.0.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/system.memory.data/8.0.1/system.memory.data.8.0.1.nupkg.sha512",
+    "/Users/samuel/.nuget/packages/system.numerics.tensors/10.0.1/system.numerics.tensors.10.0.1.nupkg.sha512"
   ],
   "logs": []
 }
