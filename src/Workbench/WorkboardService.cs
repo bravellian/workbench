@@ -55,7 +55,7 @@ public static class WorkboardService
         Directory.CreateDirectory(Path.GetDirectoryName(path) ?? repoRoot);
         File.WriteAllText(path, content);
 
-        var counts = sections.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Count,  StringComparer.OrdinalIgnoreCase);
+        var counts = sections.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Count, StringComparer.OrdinalIgnoreCase);
         return new WorkboardResult(path, counts);
     }
 

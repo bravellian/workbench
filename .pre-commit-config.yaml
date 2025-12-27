@@ -18,6 +18,12 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=5120"]
       - id: detect-private-key
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+        files: "(?i)\\.(cs|csproj|sln|slnx|props|targets|md|markdown|mdx|ya?ml|json|ps1|sh|cmd|bat|config|editorconfig|txt)$"
+      - id: check-xml
+
+
 
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
@@ -29,21 +35,29 @@ repos:
 
   - repo: local
     hooks:
+      - id: dotnet-format-apply
+        name: dotnet format (whitespace+style+analyzers)
+        language: system
+        entry: dotnet format Workbench.slnx
+        pass_filenames: false
+        stages: [manual]
       - id: dotnet-format-verify
         name: dotnet format (verify)
         language: system
         entry: dotnet format Workbench.slnx --verify-no-changes
-        stages: [manual]
         files: "(?i)\\.(cs|csproj|sln|slnx|props|targets)$"
+        pass_filenames: false
       - id: dotnet-build
         name: dotnet build
         language: system
         entry: dotnet build Workbench.slnx
         stages: [manual]
         files: "(?i)\\.(cs|csproj|sln|slnx|props|targets)$"
+        pass_filenames: false
       - id: dotnet-test
         name: dotnet test
         language: system
-        entry: dotnet test Workbench.slnx
+        entry: dotnet test --project tests/Workbench.Tests/Workbench.Tests.csproj
         stages: [manual]
         files: "(?i)\\.(cs|csproj|sln|slnx|props|targets)$"
+        pass_filenames: false

@@ -442,7 +442,7 @@ public static class DocService
         };
         if (type.Equals("adr", StringComparison.OrdinalIgnoreCase))
         {
-            var date = DateTime.UtcNow.ToString("yyyy-MM-dd",  CultureInfo.InvariantCulture);
+            var date = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             return Path.Combine(dir, $"{date}-{slug}.md");
         }
         return Path.Combine(dir, $"{slug}.md");

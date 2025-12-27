@@ -1,6 +1,6 @@
-using System.Text.RegularExpressions;
 using System.Collections;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Workbench;
 
@@ -315,7 +315,7 @@ public static class ValidationService
                     continue;
                 }
 
-                if (target.StartsWith("#",  StringComparison.OrdinalIgnoreCase) ||
+                if (target.StartsWith("#", StringComparison.OrdinalIgnoreCase) ||
                     target.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                     target.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
                     target.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
@@ -545,7 +545,7 @@ public static class ValidationService
             return true;
         }
 
-        var match = Regex.Match(anchor, @"^L(?<start>\d+)(C(?<colStart>\d+))?(?:-L(?<end>\d+)(C(?<colEnd>\d+))?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture,  TimeSpan.FromSeconds(1));
+        var match = Regex.Match(anchor, @"^L(?<start>\d+)(C(?<colStart>\d+))?(?:-L(?<end>\d+)(C(?<colEnd>\d+))?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
         if (!match.Success)
         {
             error = $"codeRefs entry '{codeRef}' has an invalid anchor.";

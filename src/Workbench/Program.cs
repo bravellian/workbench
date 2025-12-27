@@ -1,8 +1,8 @@
 using System.CommandLine;
-using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Workbench;
 
 static string ResolveRepo(string? repoArg)
