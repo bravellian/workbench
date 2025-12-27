@@ -34,4 +34,4 @@ jobs:
         run: dotnet build Workbench.slnx
 
       - name: Test
-        run: dotnet test Workbench.slnx
+        run: dotnet test --solution Workbench.slnx

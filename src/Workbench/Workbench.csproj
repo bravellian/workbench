@@ -3,12 +3,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <PublishAot>true</PublishAot>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>false</SelfContained>
     <SelfContained Condition="'$(IsPublishing)' == 'true'">true</SelfContained>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <PublishTrimmed>true</PublishTrimmed>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackAsTool>true</PackAsTool>
@@ -17,9 +13,10 @@
     <Version>0.1.0</Version>
     <PackageVersion>0.1.0</PackageVersion>
 
-    <TrimmerSingleWarn>false</TrimmerSingleWarn>
-    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    <PublishAot>false</PublishAot>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishSingleFile>false</PublishSingleFile>
+    <SelfContained>false</SelfContained>
 
   </PropertyGroup>
 
