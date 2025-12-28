@@ -19,6 +19,7 @@ public class Program
         {
             throw new InvalidOperationException("Not a git repository.");
         }
+        EnvLoader.LoadRepoEnv(repoRoot);
         return repoRoot;
     }
 
