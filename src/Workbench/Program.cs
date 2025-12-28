@@ -1712,14 +1712,14 @@ public class Program
             Description = "When descriptions differ, prefer 'local' or 'github'."
         };
         syncPreferOption.CompletionSources.Add("local", "github");
-        var syncDryRunOption = new Option<bool>("--dry-run")
+        var itemSyncDryRunOption = new Option<bool>("--dry-run")
         {
             Description = "Report changes without writing."
         };
         itemSyncCommand.Options.Add(syncIdOption);
         itemSyncCommand.Options.Add(syncIssueOption);
         itemSyncCommand.Options.Add(syncPreferOption);
-        itemSyncCommand.Options.Add(syncDryRunOption);
+        itemSyncCommand.Options.Add(itemSyncDryRunOption);
         itemSyncCommand.SetAction(parseResult =>
         {
             try
@@ -1729,7 +1729,7 @@ public class Program
                 var ids = parseResult.GetValue(syncIdOption) ?? Array.Empty<string>();
                 var issueInputs = parseResult.GetValue(syncIssueOption) ?? Array.Empty<string>();
                 var prefer = parseResult.GetValue(syncPreferOption);
-                var dryRun = parseResult.GetValue(syncDryRunOption);
+                var dryRun = parseResult.GetValue(itemSyncDryRunOption);
                 var repoRoot = ResolveRepo(repo);
                 var resolvedFormat = ResolveFormat(format);
                 var config = WorkbenchConfig.Load(repoRoot, out var configError);
@@ -3157,23 +3157,23 @@ public class Program
         {
             Description = "Rewrite index sections even if content is unchanged."
         };
-        var syncDryRunOption = new Option<bool>("--dry-run")
+        var repoSyncDryRunOption = new Option<bool>("--dry-run")
         {
             Description = "Report changes without writing files."
         };
-        var syncPreferOption = new Option<string?>("--prefer")
+        var repoSyncPreferOption = new Option<string?>("--prefer")
         {
             Description = "When syncing work items, prefer 'local' or 'github'."
         };
-        syncPreferOption.CompletionSources.Add("local", "github");
+        repoSyncPreferOption.CompletionSources.Add("local", "github");
         syncCommand.Options.Add(syncItemsOption);
         syncCommand.Options.Add(syncDocsOption);
         syncCommand.Options.Add(syncNavOption);
         syncCommand.Options.Add(syncIssuesOption);
         syncCommand.Options.Add(syncIncludeDoneOption);
         syncCommand.Options.Add(syncForceOption);
-        syncCommand.Options.Add(syncDryRunOption);
-        syncCommand.Options.Add(syncPreferOption);
+        syncCommand.Options.Add(repoSyncDryRunOption);
+        syncCommand.Options.Add(repoSyncPreferOption);
         syncCommand.SetAction(parseResult =>
         {
             try
@@ -3186,8 +3186,8 @@ public class Program
                 var syncIssues = parseResult.GetValue(syncIssuesOption);
                 var includeDone = parseResult.GetValue(syncIncludeDoneOption);
                 var force = parseResult.GetValue(syncForceOption);
-                var dryRun = parseResult.GetValue(syncDryRunOption);
-                var prefer = parseResult.GetValue(syncPreferOption);
+                var dryRun = parseResult.GetValue(repoSyncDryRunOption);
+                var prefer = parseResult.GetValue(repoSyncPreferOption);
 
                 if (!runItems && !runDocs && !runNav)
                 {
@@ -3227,7 +3227,14 @@ public class Program
 
                 if (runNav)
                 {
-                    var result = NavigationService.SyncNavigation(repoRoot, config, includeDone, syncIssues, force, dryRun);
+                    var result = NavigationService.SyncNavigation(
+                        repoRoot,
+                        config,
+                        includeDone,
+                        syncIssues,
+                        force,
+                        dryRun,
+                        syncDocs: !runDocs);
                     navData = new NavSyncData(
                         result.DocsUpdated,
                         result.ItemsUpdated,
