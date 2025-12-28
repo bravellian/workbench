@@ -452,9 +452,9 @@ public static class NavigationService
 
         if (!dryRun)
         {
-            File.WriteAllText(filePath, updated ? newContent : fileContent);
+            File.WriteAllText(filePath, newContent);
         }
-        return 1;
+        return updated && !dryRun ? 1 : 0;
     }
 
     private static bool ReplaceSection(

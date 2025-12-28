@@ -245,12 +245,9 @@ public static class WorkItemService
                 }
             }
 
-            if (changed)
+            if (changed && !dryRun)
             {
-                if (!dryRun)
-                {
-                    File.WriteAllText(item.Path, frontMatter.Serialize());
-                }
+                File.WriteAllText(item.Path, frontMatter.Serialize());
                 updatedCount++;
             }
         }
@@ -285,12 +282,9 @@ public static class WorkItemService
             changed |= NormalizeList(related, "issues");
             changed |= NormalizeList(related, "branches");
 
-            if (changed)
+            if (changed && !dryRun)
             {
-                if (!dryRun)
-                {
-                    File.WriteAllText(item.Path, frontMatter.Serialize());
-                }
+                File.WriteAllText(item.Path, frontMatter.Serialize());
                 updated++;
             }
         }
