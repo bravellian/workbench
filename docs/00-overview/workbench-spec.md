@@ -318,6 +318,9 @@ Print effective config (defaults + repo config).
 #### workbench item new --type <bug|task|spike> --title "<...>" [--status <...>] [--priority <...>] [--owner <...>]
 Creates a new work item file in /work/items using templates and ID allocation rules.
 
+#### workbench item generate --prompt "<...>" [--type <bug|task|spike>] [--status <...>] [--priority <...>] [--owner <...>]
+Generates a work item draft with AI from freeform text and creates it in /work/items.
+
 #### workbench item list [--type ...] [--status ...] [--include-done]
 Lists items from active and optionally includes done items.
 

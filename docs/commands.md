@@ -134,6 +134,13 @@ Data:
 { "item": { /* WorkItem */ } }
 ```
 
+## workbench item generate
+
+Data:
+```json
+{ "item": { /* WorkItem */ } }
+```
+
 ## workbench item import
 
 Data:

@@ -6,6 +6,7 @@ namespace Workbench;
     PropertyNameCaseInsensitive = true,
     WriteIndented = true)]
 [JsonSerializable(typeof(WorkbenchConfig))]
+[JsonSerializable(typeof(WorkItemDraft))]
 [JsonSerializable(typeof(DoctorOutput))]
 [JsonSerializable(typeof(ScaffoldOutput))]
 [JsonSerializable(typeof(ConfigOutput))]

@@ -74,6 +74,22 @@ public class Program
         return string.Join("\n", collected).Trim();
     }
 
+    static string ResolveWorkItemType(string? overrideType, string? generatedType)
+    {
+        var candidate = overrideType ?? generatedType;
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return "task";
+        }
+        return candidate.Trim().ToLowerInvariant() switch
+        {
+            "bug" => "bug",
+            "task" => "task",
+            "spike" => "spike",
+            _ => "task"
+        };
+    }
+
     static ItemSyncData RunItemSync(
         string repoRoot,
         WorkbenchConfig config,
@@ -1605,6 +1621,96 @@ public class Program
             }
         });
         itemCommand.Subcommands.Add(itemNewCommand);
+
+        var itemGenerateCommand = new Command("generate", "Generate a work item draft with AI and create it.");
+        var itemGenerateTypeOption = new Option<string?>("--type")
+        {
+            Description = "Work item type: bug, task, spike (defaults to AI choice)."
+        };
+        itemGenerateTypeOption.CompletionSources.Add("bug", "task", "spike");
+        var itemGeneratePromptOption = new Option<string[]>("--prompt")
+        {
+            Description = "Freeform description for the AI-generated work item.",
+            Required = true,
+            AllowMultipleArgumentsPerToken = true
+        };
+        var itemGenerateStatusOption = CreateStatusOption();
+        var itemGeneratePriorityOption = CreatePriorityOption();
+        var itemGenerateOwnerOption = CreateOwnerOption();
+        itemGenerateCommand.Options.Add(itemGeneratePromptOption);
+        itemGenerateCommand.Options.Add(itemGenerateTypeOption);
+        itemGenerateCommand.Options.Add(itemGenerateStatusOption);
+        itemGenerateCommand.Options.Add(itemGeneratePriorityOption);
+        itemGenerateCommand.Options.Add(itemGenerateOwnerOption);
+        itemGenerateCommand.SetAction(async parseResult =>
+        {
+            try
+            {
+                var repo = parseResult.GetValue(repoOption);
+                var format = parseResult.GetValue(formatOption) ?? "table";
+                var promptParts = parseResult.GetValue(itemGeneratePromptOption) ?? Array.Empty<string>();
+                var typeOverride = parseResult.GetValue(itemGenerateTypeOption);
+                var status = parseResult.GetValue(itemGenerateStatusOption);
+                var priority = parseResult.GetValue(itemGeneratePriorityOption);
+                var owner = parseResult.GetValue(itemGenerateOwnerOption);
+
+                var prompt = string.Join(" ", promptParts).Trim();
+                if (string.IsNullOrWhiteSpace(prompt))
+                {
+                    Console.WriteLine("Prompt is required.");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var repoRoot = ResolveRepo(repo);
+                var resolvedFormat = ResolveFormat(format);
+                var config = WorkbenchConfig.Load(repoRoot, out var configError);
+                if (configError is not null)
+                {
+                    Console.WriteLine($"Config error: {configError}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                if (!AiWorkItemClient.TryCreate(out var client, out var reason))
+                {
+                    Console.WriteLine($"AI work item generation disabled: {reason}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var draft = await client!.GenerateDraftAsync(prompt).ConfigureAwait(false);
+                if (draft == null || string.IsNullOrWhiteSpace(draft.Title))
+                {
+                    Console.WriteLine("AI did not return a valid work item draft.");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var type = ResolveWorkItemType(typeOverride, draft.Type);
+                var result = WorkItemService.CreateItem(repoRoot, config, type, draft.Title, status, priority, owner);
+                WorkItemService.ApplyDraft(result.Path, draft);
+
+                if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var payload = new ItemCreateOutput(
+                        true,
+                        new ItemCreateData(result.Id, result.Slug, result.Path));
+                    WriteJson(payload, WorkbenchJsonContext.Default.ItemCreateOutput);
+                }
+                else
+                {
+                    Console.WriteLine($"{result.Id} created at {result.Path}");
+                }
+                SetExitCode(0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                SetExitCode(2);
+            }
+        });
+        itemCommand.Subcommands.Add(itemGenerateCommand);
 
         var itemImportCommand = new Command("import", "Import GitHub issues into work items.");
         var importIssueOption = new Option<string[]>("--issue")

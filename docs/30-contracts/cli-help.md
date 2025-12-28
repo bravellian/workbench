@@ -81,6 +81,9 @@ Commands:
 - `workbench item new --type <bug|task|spike> --title "<...>" [--status <...>] [--priority <...>] [--owner <...>]`
   - Create a new work item in `work/items` using templates and ID allocation.
   - Example: `workbench item new --type task --title "Add promote command"`
+- `workbench item generate --prompt "<...>" [--type <bug|task|spike>] [--status <...>] [--priority <...>] [--owner <...>]`
+  - Generate a work item with AI from freeform text and create it in `work/items`.
+  - Example: `workbench item generate --prompt "Add guardrails to prevent empty summaries"`
 - Status values: `draft`, `ready`, `in-progress`, `blocked`, `done`, `dropped`.
 - `workbench item import --issue <id|url...> [--type <bug|task|spike>] [--status <...>] [--priority <...>] [--owner <...>]`
   - Import GitHub issues into work items, linking related PRs when available.

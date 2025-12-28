@@ -128,6 +128,40 @@ public static class WorkItemService
         return LoadItem(created.Path) ?? throw new InvalidOperationException("Failed to reload work item.");
     }
 
+    public static WorkItem ApplyDraft(string path, WorkItemDraft draft)
+    {
+        var content = File.ReadAllText(path);
+        if (!FrontMatter.TryParse(content, out var frontMatter, out var error))
+        {
+            throw new InvalidOperationException($"Front matter error: {error}");
+        }
+
+        var data = frontMatter!.Data;
+        if (draft.Tags is { Count: > 0 })
+        {
+            data["tags"] = draft.Tags
+                .Select(tag => tag.Trim())
+                .Where(tag => tag.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        var summary = draft.Summary?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(summary))
+        {
+            throw new InvalidOperationException("Draft summary is empty.");
+        }
+
+        var criteria = FormatAcceptanceCriteria(draft.AcceptanceCriteria);
+        var body = frontMatter.Body;
+        body = ReplaceSection(body, "Summary", summary);
+        body = ReplaceSection(body, "Acceptance criteria", criteria);
+        frontMatter = new FrontMatter(data, body);
+        File.WriteAllText(path, frontMatter.Serialize());
+
+        return LoadItem(path) ?? throw new InvalidOperationException("Failed to reload work item.");
+    }
+
     public static WorkItem UpdateItemFromGithubIssue(string path, GithubIssue issue, bool apply)
     {
         var content = File.ReadAllText(path);
@@ -716,13 +750,39 @@ public static class WorkItemService
         }
         if (!string.IsNullOrWhiteSpace(issue.Body))
         {
+            var normalizedBody = NormalizeIssueBody(issue.Body);
             if (lines.Count > 0)
             {
                 lines.Add(string.Empty);
             }
-            lines.AddRange(issue.Body.Replace("\r\n", "\n").Split('\n'));
+            lines.AddRange(normalizedBody.Replace("\r\n", "\n").Split('\n'));
         }
         return string.Join("\n", lines);
+    }
+
+    private static string NormalizeIssueBody(string body)
+    {
+        var normalized = body.Replace("\r\n", "\n");
+        if (!normalized.Contains('\n') && normalized.Contains("\\n", StringComparison.Ordinal))
+        {
+            normalized = normalized.Replace("\\r\\n", "\n").Replace("\\n", "\n");
+        }
+        return normalized;
+    }
+
+    private static string FormatAcceptanceCriteria(IEnumerable<string>? criteria)
+    {
+        var items = criteria?
+            .Select(entry => entry.Trim())
+            .Where(entry => entry.Length > 0)
+            .Select(entry => entry.StartsWith("-", StringComparison.Ordinal) ? entry : $"- {entry}")
+            .ToList() ?? new List<string>();
+
+        if (items.Count == 0)
+        {
+            return "-";
+        }
+        return string.Join("\n", items);
     }
 
     private static bool AddUniqueLink(List<object?> list, string link)

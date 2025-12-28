@@ -14,6 +14,7 @@ Milestones, progress tracking, and delivery notes.
 
 Related:
 - [AI change notes for markdown docs](ai-change-notes.md)
+- [AI work item generation](ai-work-item-generation.md)
 
 ## Include
 
