@@ -288,6 +288,7 @@ Data:
   "docsUpdated": 1,
   "itemsUpdated": 1,
   "indexFilesUpdated": 2,
+  "workboardUpdated": 1,
   "missingDocs": [],
   "missingItems": [],
   "warnings": []

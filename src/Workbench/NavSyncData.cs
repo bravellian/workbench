@@ -6,6 +6,7 @@ namespace Workbench
         [property: JsonPropertyName("docsUpdated")] int DocsUpdated,
         [property: JsonPropertyName("itemsUpdated")] int ItemsUpdated,
         [property: JsonPropertyName("indexFilesUpdated")] int IndexFilesUpdated,
+        [property: JsonPropertyName("workboardUpdated")] int WorkboardUpdated,
         [property: JsonPropertyName("missingDocs")] IList<string> MissingDocs,
         [property: JsonPropertyName("missingItems")] IList<string> MissingItems,
         [property: JsonPropertyName("warnings")] IList<string> Warnings);

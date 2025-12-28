@@ -3044,6 +3044,11 @@ public class Program
         {
             Description = "Rewrite index sections even if content is unchanged."
         };
+        var navSyncWorkboardOption = new Option<bool>("--workboard")
+        {
+            Description = "Regenerate the workboard.",
+            DefaultValueFactory = _ => true
+        };
         var navSyncIncludeDoneOption = new Option<bool>("--include-done")
         {
             Description = "Include done/dropped work items in indexes."
@@ -3054,6 +3059,7 @@ public class Program
         };
         navSyncCommand.Options.Add(navSyncIssuesOption);
         navSyncCommand.Options.Add(navSyncForceOption);
+        navSyncCommand.Options.Add(navSyncWorkboardOption);
         navSyncCommand.Options.Add(navSyncIncludeDoneOption);
         navSyncCommand.Options.Add(navSyncDryRunOption);
         navSyncCommand.SetAction(parseResult =>
@@ -3065,6 +3071,7 @@ public class Program
                 var includeDone = parseResult.GetValue(navSyncIncludeDoneOption);
                 var syncIssues = parseResult.GetValue(navSyncIssuesOption);
                 var force = parseResult.GetValue(navSyncForceOption);
+                var syncWorkboard = parseResult.GetValue(navSyncWorkboardOption);
                 var dryRun = parseResult.GetValue(navSyncDryRunOption);
                 var repoRoot = ResolveRepo(repo);
                 var resolvedFormat = ResolveFormat(format);
@@ -3076,7 +3083,7 @@ public class Program
                     return;
                 }
 
-                var result = NavigationService.SyncNavigation(repoRoot, config, includeDone, syncIssues, force, dryRun);
+                var result = NavigationService.SyncNavigation(repoRoot, config, includeDone, syncIssues, force, syncWorkboard, dryRun);
                 if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
                 {
                     var payload = new NavSyncOutput(
@@ -3085,6 +3092,7 @@ public class Program
                             result.DocsUpdated,
                             result.ItemsUpdated,
                             result.IndexFilesUpdated,
+                            result.WorkboardUpdated,
                             result.MissingDocs,
                             result.MissingItems,
                             result.Warnings));
@@ -3095,6 +3103,7 @@ public class Program
                     Console.WriteLine($"Docs updated: {result.DocsUpdated}");
                     Console.WriteLine($"Work items updated: {result.ItemsUpdated}");
                     Console.WriteLine($"Index files updated: {result.IndexFilesUpdated}");
+                    Console.WriteLine($"Workboard updated: {result.WorkboardUpdated}");
                     if (result.Warnings.Count > 0)
                     {
                         Console.WriteLine("Warnings:");
@@ -3157,6 +3166,11 @@ public class Program
         {
             Description = "Rewrite index sections even if content is unchanged."
         };
+        var syncWorkboardOption = new Option<bool>("--workboard")
+        {
+            Description = "Regenerate the workboard when syncing navigation.",
+            DefaultValueFactory = _ => true
+        };
         var repoSyncDryRunOption = new Option<bool>("--dry-run")
         {
             Description = "Report changes without writing files."
@@ -3172,6 +3186,7 @@ public class Program
         syncCommand.Options.Add(syncIssuesOption);
         syncCommand.Options.Add(syncIncludeDoneOption);
         syncCommand.Options.Add(syncForceOption);
+        syncCommand.Options.Add(syncWorkboardOption);
         syncCommand.Options.Add(repoSyncDryRunOption);
         syncCommand.Options.Add(repoSyncPreferOption);
         syncCommand.SetAction(parseResult =>
@@ -3186,6 +3201,7 @@ public class Program
                 var syncIssues = parseResult.GetValue(syncIssuesOption);
                 var includeDone = parseResult.GetValue(syncIncludeDoneOption);
                 var force = parseResult.GetValue(syncForceOption);
+                var syncWorkboard = parseResult.GetValue(syncWorkboardOption);
                 var dryRun = parseResult.GetValue(repoSyncDryRunOption);
                 var prefer = parseResult.GetValue(repoSyncPreferOption);
 
@@ -3233,12 +3249,14 @@ public class Program
                         includeDone,
                         syncIssues,
                         force,
+                        syncWorkboard,
                         dryRun,
                         syncDocs: !runDocs);
                     navData = new NavSyncData(
                         result.DocsUpdated,
                         result.ItemsUpdated,
                         result.IndexFilesUpdated,
+                        result.WorkboardUpdated,
                         result.MissingDocs,
                         result.MissingItems,
                         result.Warnings);
@@ -3294,6 +3312,7 @@ public class Program
                         Console.WriteLine($"Docs updated: {navData.DocsUpdated}");
                         Console.WriteLine($"Work items updated: {navData.ItemsUpdated}");
                         Console.WriteLine($"Index files updated: {navData.IndexFilesUpdated}");
+                        Console.WriteLine($"Workboard updated: {navData.WorkboardUpdated}");
                         if (navData.Warnings.Count > 0)
                         {
                             Console.WriteLine("Warnings:");
