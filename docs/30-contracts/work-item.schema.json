@@ -13,6 +13,7 @@
     "priority": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
     "owner": { "type": ["string", "null"] },
     "updated": { "type": ["string", "null"], "format": "date" },
+    "githubSynced": { "type": ["string", "null"], "format": "date-time" },
     "tags": {
       "type": "array",
       "items": { "type": "string" }

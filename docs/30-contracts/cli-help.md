@@ -66,8 +66,8 @@ Commands:
   - Launch the interactive wizard for common document and work item actions.
   - Example: `workbench run`
 
-- `workbench sync [--items] [--docs] [--nav] [--issues <true|false>] [--include-done] [--force] [--dry-run] [--prefer <local|github>]`
-  - Run the full repo sync (work items, docs/front matter, and navigation) in order. When no step flags are provided, runs all.
+- `workbench sync [--items] [--docs] [--nav] [--issues <true|false>] [--import-issues] [--include-done] [--force] [--dry-run] [--prefer <local|github>]`
+  - Run the full repo sync (work items, docs/front matter, and navigation) in order. When no step flags are provided, runs all. Use `--import-issues` to scan GitHub for unlinked issues (slower).
   - Example: `workbench sync --dry-run`
 
 - `workbench scaffold [--force]`
@@ -90,8 +90,8 @@ Commands:
   - Example: `workbench item import --issue 42 --issue https://github.com/org/repo/issues/18`
 - Status values: `draft`, `ready`, `in-progress`, `blocked`, `done`, `dropped`.
 
-- `workbench item sync [--id <ID...>] [--issue <id|url...>] [--prefer <local|github>] [--dry-run]`
-  - Sync work items with GitHub issues and branches (two-way, no deletes). Branches are only created when listed in `related.branches`. Defaults to pushing local content to GitHub unless `--prefer github` is set for ID-scoped sync.
+- `workbench item sync [--id <ID...>] [--issue <id|url...>] [--import-issues] [--prefer <local|github>] [--dry-run]`
+  - Sync work items with GitHub issues and branches (two-way, no deletes). Branches are only created when listed in `related.branches`. Defaults to pushing local content to GitHub unless `--prefer github` is set for ID-scoped sync. Use `--import-issues` to scan GitHub for unlinked issues (slower).
   - Example: `workbench item sync --dry-run`
 
 - `workbench add task --title "<...>" [--status <...>] [--priority <...>] [--owner <...>]`

@@ -100,6 +100,7 @@ public static class WorkItemService
         }
 
         var data = frontMatter!.Data;
+        data["githubSynced"] = FormatGithubSynced(DateTime.UtcNow);
         if (issue.Labels.Count > 0)
         {
             data["tags"] = issue.Labels.ToList();
@@ -172,6 +173,7 @@ public static class WorkItemService
 
         var data = frontMatter!.Data;
         data["title"] = issue.Title;
+        data["githubSynced"] = FormatGithubSynced(DateTime.UtcNow);
         if (issue.Labels.Count > 0)
         {
             data["tags"] = issue.Labels.ToList();
@@ -281,6 +283,7 @@ public static class WorkItemService
 
             if (changed && !dryRun)
             {
+                data["githubSynced"] = FormatGithubSynced(DateTime.UtcNow);
                 File.WriteAllText(item.Path, frontMatter.Serialize());
                 updatedCount++;
             }
@@ -530,6 +533,30 @@ public static class WorkItemService
         return false;
     }
 
+    public static bool UpdateGithubSynced(string path, DateTime timestamp, bool apply = true)
+    {
+        var content = File.ReadAllText(path);
+        if (!FrontMatter.TryParse(content, out var frontMatter, out var error))
+        {
+            throw new InvalidOperationException($"Front matter error: {error}");
+        }
+
+        var data = frontMatter!.Data;
+        var value = FormatGithubSynced(timestamp);
+        var existing = GetString(data, "githubSynced");
+        if (string.Equals(existing, value, StringComparison.Ordinal))
+        {
+            return false;
+        }
+        data["githubSynced"] = value;
+
+        if (apply)
+        {
+            File.WriteAllText(path, frontMatter.Serialize());
+        }
+        return true;
+    }
+
     public static string GetItemPathById(string repoRoot, WorkbenchConfig config, string id)
     {
         foreach (var dir in new[] { config.Paths.ItemsDir, config.Paths.DoneDir })
@@ -650,6 +677,11 @@ public static class WorkItemService
             return name[(id.Length + 1)..];
         }
         return name;
+    }
+
+    private static string FormatGithubSynced(DateTime timestamp)
+    {
+        return timestamp.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
     }
 
     private static string AppendNote(string body, string note)

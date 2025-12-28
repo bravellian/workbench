@@ -96,6 +96,7 @@ public class Program
         WorkbenchConfig config,
         string[] ids,
         string[] issueInputs,
+        bool importIssues,
         string? prefer,
         bool dryRun)
     {
@@ -165,7 +166,9 @@ public class Program
         }
         else
         {
-            issuesToImport = GithubService.ListIssues(repoRoot, defaultRepo);
+            issuesToImport = importIssues
+                ? GithubService.ListIssues(repoRoot, defaultRepo)
+                : Array.Empty<GithubIssue>();
         }
 
         foreach (var issue in issuesToImport)
@@ -246,6 +249,7 @@ public class Program
                 if (!dryRun)
                 {
                     GithubService.UpdateIssue(repoRoot, issueRef, desiredTitle, desiredBody);
+                    WorkItemService.UpdateGithubSynced(item.Path, DateTime.UtcNow);
                 }
                 issuesUpdated.Add(new ItemSyncIssueUpdateEntry(item.Id, issue.Url));
             }
@@ -272,6 +276,7 @@ public class Program
 
             var issueUrl = GithubService.CreateIssue(repoRoot, defaultRepo, item.Title, body, item.Tags);
             WorkItemService.AddRelatedLink(item.Path, "issues", issueUrl);
+            WorkItemService.UpdateGithubSynced(item.Path, DateTime.UtcNow);
             issuesCreated.Add(new ItemSyncIssueEntry(item.Id, issueUrl));
         }
 
@@ -1823,10 +1828,15 @@ public class Program
         {
             Description = "Report changes without writing."
         };
+        var itemSyncImportIssuesOption = new Option<bool>("--import-issues")
+        {
+            Description = "List GitHub issues and import ones not yet linked (slower)."
+        };
         itemSyncCommand.Options.Add(syncIdOption);
         itemSyncCommand.Options.Add(syncIssueOption);
         itemSyncCommand.Options.Add(syncPreferOption);
         itemSyncCommand.Options.Add(itemSyncDryRunOption);
+        itemSyncCommand.Options.Add(itemSyncImportIssuesOption);
         itemSyncCommand.SetAction(parseResult =>
         {
             try
@@ -1837,6 +1847,7 @@ public class Program
                 var issueInputs = parseResult.GetValue(syncIssueOption) ?? Array.Empty<string>();
                 var prefer = parseResult.GetValue(syncPreferOption);
                 var dryRun = parseResult.GetValue(itemSyncDryRunOption);
+                var importIssues = parseResult.GetValue(itemSyncImportIssuesOption);
                 var repoRoot = ResolveRepo(repo);
                 var resolvedFormat = ResolveFormat(format);
                 var config = WorkbenchConfig.Load(repoRoot, out var configError);
@@ -1847,7 +1858,7 @@ public class Program
                     return;
                 }
 
-                var data = RunItemSync(repoRoot, config, ids, issueInputs, prefer, dryRun);
+                var data = RunItemSync(repoRoot, config, ids, issueInputs, importIssues, prefer, dryRun);
 
                 if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
                 {
@@ -3265,6 +3276,10 @@ public class Program
             Description = "Sync GitHub issue links for docs and navigation.",
             DefaultValueFactory = _ => true
         };
+        var syncImportIssuesOption = new Option<bool>("--import-issues")
+        {
+            Description = "List GitHub issues and import ones not yet linked (slower)."
+        };
         var syncIncludeDoneOption = new Option<bool>("--include-done")
         {
             Description = "Include done/dropped work items in docs and navigation."
@@ -3291,6 +3306,7 @@ public class Program
         syncCommand.Options.Add(syncDocsOption);
         syncCommand.Options.Add(syncNavOption);
         syncCommand.Options.Add(syncIssuesOption);
+        syncCommand.Options.Add(syncImportIssuesOption);
         syncCommand.Options.Add(syncIncludeDoneOption);
         syncCommand.Options.Add(syncForceOption);
         syncCommand.Options.Add(syncWorkboardOption);
@@ -3306,6 +3322,7 @@ public class Program
                 var runDocs = parseResult.GetValue(syncDocsOption);
                 var runNav = parseResult.GetValue(syncNavOption);
                 var syncIssues = parseResult.GetValue(syncIssuesOption);
+                var importIssues = parseResult.GetValue(syncImportIssuesOption);
                 var includeDone = parseResult.GetValue(syncIncludeDoneOption);
                 var force = parseResult.GetValue(syncForceOption);
                 var syncWorkboard = parseResult.GetValue(syncWorkboardOption);
@@ -3335,7 +3352,7 @@ public class Program
 
                 if (runItems)
                 {
-                    itemData = RunItemSync(repoRoot, config, Array.Empty<string>(), Array.Empty<string>(), prefer, dryRun);
+                    itemData = RunItemSync(repoRoot, config, Array.Empty<string>(), Array.Empty<string>(), importIssues, prefer, dryRun);
                 }
 
                 if (runDocs)

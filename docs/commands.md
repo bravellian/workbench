@@ -165,6 +165,8 @@ Data:
 
 ## workbench item sync
 
+By default, syncs linked work items and creates missing issues; use `--import-issues` to scan GitHub for unlinked issues.
+
 Data:
 ```json
 {
