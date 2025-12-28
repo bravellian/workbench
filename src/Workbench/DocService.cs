@@ -119,8 +119,8 @@ public static class DocService
                 if (!dryRun)
                 {
                     File.WriteAllText(docPath, frontMatter!.Serialize());
+                    docsUpdated++;
                 }
-                docsUpdated++;
             }
         }
 
@@ -268,8 +268,8 @@ public static class DocService
                 if (!dryRun)
                 {
                     File.WriteAllText(docPath, frontMatter!.Serialize());
+                    updated++;
                 }
-                updated++;
             }
         }
 

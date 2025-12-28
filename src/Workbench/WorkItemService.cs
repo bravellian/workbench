@@ -248,8 +248,8 @@ public static class WorkItemService
                 if (!dryRun)
                 {
                     File.WriteAllText(item.Path, frontMatter.Serialize());
+                    updatedCount++;
                 }
-                updatedCount++;
             }
         }
 
@@ -288,8 +288,8 @@ public static class WorkItemService
                 if (!dryRun)
                 {
                     File.WriteAllText(item.Path, frontMatter.Serialize());
+                    updated++;
                 }
-                updated++;
             }
         }
 
