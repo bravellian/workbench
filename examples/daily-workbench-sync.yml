@@ -1,0 +1,50 @@
+name: Daily Workbench Sync
+
+on:
+  schedule:
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: workbench-daily-sync
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install Workbench CLI tool
+        run: |
+          dotnet tool install --global Bravellian.Workbench
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Sync workbench metadata
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          workbench sync --include-done --force --issues true
+
+      - name: Validate repo
+        run: workbench validate --strict
+
+      - name: Create pull request for sync updates
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: daily workbench sync"
+          title: "chore: daily workbench sync"
+          body: "Automated daily sync from Workbench CLI."
+          branch: "automation/workbench-daily-sync"
+          delete-branch: true
