@@ -6,20 +6,15 @@ priority: medium
 owner: platform
 created: 2025-12-27
 updated: null
-tags:
-
+tags: []
 related:
-  specs:
-
-  adrs:
-
-  files:
-
-  prs:
-
+  specs: []
+  adrs: []
+  files: []
+  prs: []
   issues:
     - "https://github.com/bravellian/workbench/issues/19"
-  branches:
+  branches: []
 title: "Plan repo structure cleanup (reduce large files, improve navigation)"
 ---
 

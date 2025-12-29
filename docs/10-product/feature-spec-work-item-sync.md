@@ -67,7 +67,7 @@ GitHub issues aligned and can create missing branches when a branch is listed.
 
 ## Related work items
 
-- [TASK-0002](</work/items/TASK-0002-promote-existing-work-items-to-github-issues.md>)
+- [TASK-0002](/work/items/TASK-0002-promote-existing-work-items-to-github-issues.md)
 
 ## Related ADRs
 

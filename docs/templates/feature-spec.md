@@ -33,10 +33,10 @@ updated: 0000-00-00
 -
 
 ## Related work items
-- [TASK-0000](</work/items/TASK-0000-short-title.md>)
+- `/work/items/TASK-0000-short-title.md`
 
 ## Related ADRs
-- </docs/40-decisions/ADR-0000-short-title.md>
+- `/docs/40-decisions/ADR-0000-short-title.md`
 
 ## Open questions
 -

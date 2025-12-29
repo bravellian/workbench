@@ -19,6 +19,6 @@ _None._
 | --- | --- | --- | --- | --- | --- | --- |
 | [TASK-0001 - Improve CLI onboarding help, init walkthrough, and run wizard](items/TASK-0001-improve-cli-onboarding-help-init-walkthrough-and-run-wizard.md) | 🟠 high | 🧩 task | 🟡 draft | platform | [#15](https://github.com/bravellian/workbench/issues/15) | [feature-spec-cli-onboarding-wizard](../docs/10-product/feature-spec-cli-onboarding-wizard.md), [ADR-2025-12-27-cli-onboarding-wizard](../docs/40-decisions/ADR-2025-12-27-cli-onboarding-wizard.md) |
 | [TASK-0003 - Validate work item status values](items/TASK-0003-validate-work-item-status-values.md) | 🟡 medium | 🧩 task | 🟡 draft | platform | [#14](https://github.com/bravellian/workbench/issues/14) | - |
-| [TASK-0004 - Plan repo structure cleanup (reduce large files, improve navigation)](items/TASK-0004-plan-repo-structure-cleanup.md) | 🟡 medium | 🧩 task | 🟡 draft | platform | - | - |
+| [TASK-0004 - Plan repo structure cleanup (reduce large files, improve navigation)](items/TASK-0004-plan-repo-structure-cleanup.md) | 🟡 medium | 🧩 task | 🟡 draft | platform | [#19](https://github.com/bravellian/workbench/issues/19) | - |
 
 </details>

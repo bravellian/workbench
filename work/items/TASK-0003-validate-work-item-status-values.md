@@ -6,12 +6,12 @@ priority: medium
 owner: platform
 created: 2025-12-27
 updated: null
-tags: null
+tags: []
 related:
-  specs: null
-  adrs: null
-  files: null
-  prs: null
+  specs: []
+  adrs: []
+  files: []
+  prs: []
   issues:
     - "https://github.com/bravellian/workbench/issues/14"
   branches:

@@ -35,6 +35,10 @@ public static class ValidationService
             }
             foreach (var file in Directory.EnumerateFiles(full, "*.md", SearchOption.TopDirectoryOnly))
             {
+                if (Path.GetFileName(file).Equals("README.md", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
                 items.Add(new WorkItemRecord(file));
             }
         }

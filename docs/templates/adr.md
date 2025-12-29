@@ -25,7 +25,7 @@ updated: 0000-00-00
 -
 
 ## Related specs
-- </docs/10-product/feature-short-title.md>
+- `/docs/10-product/feature-short-title.md`
 
 ## Related work items
-- [TASK-0000](</work/items/TASK-0000-short-title.md>)
+- `/work/items/TASK-0000-short-title.md`

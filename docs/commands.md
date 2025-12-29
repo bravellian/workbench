@@ -127,6 +127,43 @@ Data:
 }
 ```
 
+## workbench config set
+
+Data:
+```json
+{
+  "path": ".workbench/config.json",
+  "config": { "paths": {}, "ids": {}, "git": {}, "github": {} },
+  "changed": true
+}
+```
+
+## workbench config credentials set
+
+Data:
+```json
+{
+  "path": ".workbench/credentials.env",
+  "key": "WORKBENCH_AI_OPENAI_KEY",
+  "created": false,
+  "updated": true,
+  "removed": false
+}
+```
+
+## workbench config credentials unset
+
+Data:
+```json
+{
+  "path": ".workbench/credentials.env",
+  "key": "WORKBENCH_AI_OPENAI_KEY",
+  "created": false,
+  "updated": false,
+  "removed": true
+}
+```
+
 ## workbench item new
 
 Data:
@@ -246,6 +283,16 @@ Data:
 }
 ```
 
+## workbench item delete
+
+Data:
+```json
+{
+  "item": { /* WorkItem */ },
+  "docsUpdated": 2
+}
+```
+
 ## workbench board regen
 
 Data:
@@ -303,6 +350,16 @@ Data:
   "missingDocs": [],
   "missingItems": [],
   "warnings": []
+}
+```
+
+## workbench doc delete
+
+Data:
+```json
+{
+  "path": "docs/10-product/payment-flow.md",
+  "itemsUpdated": 1
 }
 ```
 

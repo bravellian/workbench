@@ -6,15 +6,15 @@ priority: medium
 owner: platform
 created: 2025-12-27
 updated: 2025-12-27
-tags: null
+tags: []
 related:
   specs:
     - /docs/10-product/feature-spec-work-item-sync.md
-  adrs: null
-  files: null
-  prs: null
-  issues: null
-  branches: null
+  adrs: []
+  files: []
+  prs: []
+  issues: []
+  branches: []
 title: Sync work items with GitHub issues and branches
 ---
 

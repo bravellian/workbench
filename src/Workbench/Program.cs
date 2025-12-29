@@ -1601,6 +1601,182 @@ public class Program
             }
         });
         configCommand.Subcommands.Add(configShowCommand);
+
+        var configSetCommand = new Command("set", "Write or update config values in .workbench/config.json.");
+        var configSetPathOption = new Option<string>("--path")
+        {
+            Description = "Config path in dot notation (e.g., paths.docsRoot).",
+            Required = true
+        };
+        var configSetValueOption = new Option<string>("--value")
+        {
+            Description = "Config value (string by default).",
+            Required = true
+        };
+        var configSetJsonOption = new Option<bool>("--json")
+        {
+            Description = "Parse the value as JSON (for booleans, numbers, or objects)."
+        };
+        configSetCommand.Options.Add(configSetPathOption);
+        configSetCommand.Options.Add(configSetValueOption);
+        configSetCommand.Options.Add(configSetJsonOption);
+        configSetCommand.SetAction(parseResult =>
+        {
+            try
+            {
+                var repo = parseResult.GetValue(repoOption);
+                var format = parseResult.GetValue(formatOption) ?? "table";
+                var path = parseResult.GetValue(configSetPathOption) ?? string.Empty;
+                var value = parseResult.GetValue(configSetValueOption) ?? string.Empty;
+                var parseJson = parseResult.GetValue(configSetJsonOption);
+                var repoRoot = ResolveRepo(repo);
+                var resolvedFormat = ResolveFormat(format);
+                var config = WorkbenchConfig.Load(repoRoot, out var configError);
+                if (configError is not null)
+                {
+                    Console.WriteLine($"Config error: {configError}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var updatedConfig = ConfigService.SetConfigValue(config, path, value, parseJson, out var changed);
+                var configPath = WorkbenchConfig.GetConfigPath(repoRoot);
+                if (changed || !File.Exists(configPath))
+                {
+                    ConfigService.SaveConfig(repoRoot, updatedConfig);
+                }
+
+                if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var payload = new ConfigSetOutput(
+                        true,
+                        new ConfigSetData(configPath, updatedConfig, changed));
+                    WriteJson(payload, WorkbenchJsonContext.Default.ConfigSetOutput);
+                }
+                else
+                {
+                    var changeLabel = changed ? "Updated" : "No change";
+                    Console.WriteLine($"{changeLabel} config at {configPath}.");
+                }
+                SetExitCode(0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                SetExitCode(2);
+            }
+        });
+        configCommand.Subcommands.Add(configSetCommand);
+
+        var configCredentialsCommand = new Command("credentials", "Manage credentials.env entries.");
+        var credentialsPathOption = new Option<string?>("--path")
+        {
+            Description = "Credentials file path (defaults to .workbench/credentials.env)."
+        };
+
+        var credentialsSetCommand = new Command("set", "Set an entry in credentials.env.");
+        var credentialsSetKeyOption = new Option<string>("--key")
+        {
+            Description = "Environment variable name.",
+            Required = true
+        };
+        var credentialsSetValueOption = new Option<string>("--value")
+        {
+            Description = "Environment variable value.",
+            Required = true
+        };
+        credentialsSetCommand.Options.Add(credentialsSetKeyOption);
+        credentialsSetCommand.Options.Add(credentialsSetValueOption);
+        credentialsSetCommand.Options.Add(credentialsPathOption);
+        credentialsSetCommand.SetAction(parseResult =>
+        {
+            try
+            {
+                var repo = parseResult.GetValue(repoOption);
+                var format = parseResult.GetValue(formatOption) ?? "table";
+                var key = parseResult.GetValue(credentialsSetKeyOption) ?? string.Empty;
+                var value = parseResult.GetValue(credentialsSetValueOption) ?? string.Empty;
+                var repoRoot = ResolveRepo(repo);
+                var resolvedFormat = ResolveFormat(format);
+                var path = parseResult.GetValue(credentialsPathOption);
+                var targetPath = string.IsNullOrWhiteSpace(path)
+                    ? Path.Combine(repoRoot, ".workbench", "credentials.env")
+                    : path!;
+
+                var result = EnvFileService.SetValue(targetPath, key, value);
+                if (IsPathInsideRepo(repoRoot, targetPath))
+                {
+                    EnsureGitignoreEntry(repoRoot, NormalizeRepoPath(repoRoot, targetPath));
+                }
+
+                if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var payload = new CredentialUpdateOutput(
+                        true,
+                        new CredentialUpdateData(result.Path, result.Key, result.Created, result.Updated, result.Removed));
+                    WriteJson(payload, WorkbenchJsonContext.Default.CredentialUpdateOutput);
+                }
+                else
+                {
+                    var message = result.Updated || result.Created ? "updated" : "no change";
+                    Console.WriteLine($"{key} {message} in {result.Path}.");
+                }
+                SetExitCode(0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                SetExitCode(2);
+            }
+        });
+
+        var credentialsUnsetCommand = new Command("unset", "Remove an entry from credentials.env.");
+        var credentialsUnsetKeyOption = new Option<string>("--key")
+        {
+            Description = "Environment variable name.",
+            Required = true
+        };
+        credentialsUnsetCommand.Options.Add(credentialsUnsetKeyOption);
+        credentialsUnsetCommand.Options.Add(credentialsPathOption);
+        credentialsUnsetCommand.SetAction(parseResult =>
+        {
+            try
+            {
+                var repo = parseResult.GetValue(repoOption);
+                var format = parseResult.GetValue(formatOption) ?? "table";
+                var key = parseResult.GetValue(credentialsUnsetKeyOption) ?? string.Empty;
+                var repoRoot = ResolveRepo(repo);
+                var resolvedFormat = ResolveFormat(format);
+                var path = parseResult.GetValue(credentialsPathOption);
+                var targetPath = string.IsNullOrWhiteSpace(path)
+                    ? Path.Combine(repoRoot, ".workbench", "credentials.env")
+                    : path!;
+
+                var result = EnvFileService.UnsetValue(targetPath, key);
+                if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var payload = new CredentialUpdateOutput(
+                        true,
+                        new CredentialUpdateData(result.Path, result.Key, result.Created, result.Updated, result.Removed));
+                    WriteJson(payload, WorkbenchJsonContext.Default.CredentialUpdateOutput);
+                }
+                else
+                {
+                    var message = result.Removed ? "removed" : "not found";
+                    Console.WriteLine($"{key} {message} in {result.Path}.");
+                }
+                SetExitCode(0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                SetExitCode(2);
+            }
+        });
+
+        configCredentialsCommand.Subcommands.Add(credentialsSetCommand);
+        configCredentialsCommand.Subcommands.Add(credentialsUnsetCommand);
+        configCommand.Subcommands.Add(configCredentialsCommand);
         root.Subcommands.Add(configCommand);
 
         var itemCommand = new Command("item", "Group: work item commands.");
@@ -2340,6 +2516,79 @@ public class Program
         });
         itemCommand.Subcommands.Add(itemRenameCommand);
 
+        var itemDeleteCommand = new Command("delete", "Delete a work item file and update doc backlinks.");
+        var deleteIdArg = new Argument<string>("id")
+        {
+            Description = "Work item ID."
+        };
+        var keepLinksOption = new Option<bool>("--keep-links")
+        {
+            Description = "Skip removing doc backlinks."
+        };
+        itemDeleteCommand.Arguments.Add(deleteIdArg);
+        itemDeleteCommand.Options.Add(keepLinksOption);
+        itemDeleteCommand.SetAction(parseResult =>
+        {
+            try
+            {
+                var repo = parseResult.GetValue(repoOption);
+                var format = parseResult.GetValue(formatOption) ?? "table";
+                var id = parseResult.GetValue(deleteIdArg) ?? string.Empty;
+                var keepLinks = parseResult.GetValue(keepLinksOption);
+                var repoRoot = ResolveRepo(repo);
+                var resolvedFormat = ResolveFormat(format);
+                var config = WorkbenchConfig.Load(repoRoot, out var configError);
+                if (configError is not null)
+                {
+                    Console.WriteLine($"Config error: {configError}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var path = WorkItemService.GetItemPathById(repoRoot, config, id);
+                var item = WorkItemService.LoadItem(path) ?? throw new InvalidOperationException("Work item not found.");
+                var docsUpdated = 0;
+                if (!keepLinks)
+                {
+                    foreach (var link in item.Related.Specs)
+                    {
+                        if (DocService.TryUpdateDocWorkItemLink(repoRoot, config, link, item.Id, add: false, apply: true))
+                        {
+                            docsUpdated++;
+                        }
+                    }
+                    foreach (var link in item.Related.Adrs)
+                    {
+                        if (DocService.TryUpdateDocWorkItemLink(repoRoot, config, link, item.Id, add: false, apply: true))
+                        {
+                            docsUpdated++;
+                        }
+                    }
+                }
+
+                File.Delete(path);
+
+                if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var payload = new ItemDeleteOutput(
+                        true,
+                        new ItemDeleteData(ItemToPayload(item), docsUpdated));
+                    WriteJson(payload, WorkbenchJsonContext.Default.ItemDeleteOutput);
+                }
+                else
+                {
+                    Console.WriteLine($"{item.Id} deleted.");
+                }
+                SetExitCode(0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                SetExitCode(2);
+            }
+        });
+        itemCommand.Subcommands.Add(itemDeleteCommand);
+
         var itemLinkCommand = new Command("link", "Link specs, ADRs, files, PRs, or issues to a work item.");
         var linkIdArg = new Argument<string>("id")
         {
@@ -2923,6 +3172,108 @@ public class Program
             HandleDocCreate(repo, format, type, title, path, workItems, codeRefs, force);
         });
 
+        var docDeleteCommand = new Command("delete", "Delete a documentation file and update work item links.");
+        var docDeletePathOption = new Option<string>("--path")
+        {
+            Description = "Doc path or link.",
+            Required = true
+        };
+        var docDeleteKeepLinksOption = new Option<bool>("--keep-links")
+        {
+            Description = "Skip removing doc links from work items."
+        };
+        docDeleteCommand.Options.Add(docDeletePathOption);
+        docDeleteCommand.Options.Add(docDeleteKeepLinksOption);
+        docDeleteCommand.SetAction(parseResult =>
+        {
+            try
+            {
+                var repo = parseResult.GetValue(repoOption);
+                var format = parseResult.GetValue(formatOption) ?? "table";
+                var link = parseResult.GetValue(docDeletePathOption) ?? string.Empty;
+                var keepLinks = parseResult.GetValue(docDeleteKeepLinksOption);
+                var repoRoot = ResolveRepo(repo);
+                var resolvedFormat = ResolveFormat(format);
+                var config = WorkbenchConfig.Load(repoRoot, out var configError);
+                if (configError is not null)
+                {
+                    Console.WriteLine($"Config error: {configError}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var docPath = DocService.ResolveDocPath(repoRoot, link);
+                var docFullPath = Path.GetFullPath(docPath);
+                if (!File.Exists(docFullPath))
+                {
+                    Console.WriteLine($"Doc not found: {docFullPath}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var itemsUpdated = 0;
+                if (!keepLinks)
+                {
+                    var items = WorkItemService.ListItems(repoRoot, config, includeDone: true).Items;
+                    foreach (var item in items)
+                    {
+                        var itemChanged = false;
+                        foreach (var spec in item.Related.Specs)
+                        {
+                            var specPath = Path.GetFullPath(DocService.ResolveDocPath(repoRoot, spec));
+                            if (specPath.Equals(docFullPath, StringComparison.OrdinalIgnoreCase)
+                                && WorkItemService.RemoveRelatedLink(item.Path, "specs", spec))
+                            {
+                                itemChanged = true;
+                            }
+                        }
+                        foreach (var adr in item.Related.Adrs)
+                        {
+                            var adrPath = Path.GetFullPath(DocService.ResolveDocPath(repoRoot, adr));
+                            if (adrPath.Equals(docFullPath, StringComparison.OrdinalIgnoreCase)
+                                && WorkItemService.RemoveRelatedLink(item.Path, "adrs", adr))
+                            {
+                                itemChanged = true;
+                            }
+                        }
+                        foreach (var file in item.Related.Files)
+                        {
+                            var filePath = Path.GetFullPath(DocService.ResolveDocPath(repoRoot, file));
+                            if (filePath.Equals(docFullPath, StringComparison.OrdinalIgnoreCase)
+                                && WorkItemService.RemoveRelatedLink(item.Path, "files", file))
+                            {
+                                itemChanged = true;
+                            }
+                        }
+                        if (itemChanged)
+                        {
+                            itemsUpdated++;
+                        }
+                    }
+                }
+
+                File.Delete(docFullPath);
+
+                if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var payload = new DocDeleteOutput(
+                        true,
+                        new DocDeleteData(docFullPath, itemsUpdated));
+                    WriteJson(payload, WorkbenchJsonContext.Default.DocDeleteOutput);
+                }
+                else
+                {
+                    Console.WriteLine($"Doc deleted: {docFullPath}");
+                }
+                SetExitCode(0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                SetExitCode(2);
+            }
+        });
+
         var docLinkCommand = new Command("link", "Link a doc to work items.");
         var docLinkTypeOption = new Option<string>("--type")
         {
@@ -3198,6 +3549,7 @@ public class Program
         });
 
         docCommand.Subcommands.Add(docNewCommand);
+        docCommand.Subcommands.Add(docDeleteCommand);
         docCommand.Subcommands.Add(docLinkCommand);
         docCommand.Subcommands.Add(docUnlinkCommand);
         docCommand.Subcommands.Add(docSyncCommand);

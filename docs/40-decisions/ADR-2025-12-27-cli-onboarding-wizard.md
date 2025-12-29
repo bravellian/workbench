@@ -46,4 +46,4 @@ setup steps are skipped when the repo appears partially configured.
 
 ## Related work items
 
-- [TASK-0001](</work/items/TASK-0001-improve-cli-onboarding-help-init-walkthrough-and-run-wizard.md>)
+- [TASK-0001](/work/items/TASK-0001-improve-cli-onboarding-help-init-walkthrough-and-run-wizard.md)

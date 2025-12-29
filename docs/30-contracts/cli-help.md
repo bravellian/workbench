@@ -77,6 +77,15 @@ Commands:
 - `workbench config show`
   - Print effective config (defaults + repo config + CLI overrides).
   - Example: `workbench config show --format json`
+- `workbench config set --path <path> --value "<...>" [--json]`
+  - Update a single config value (dot-path).
+  - Example: `workbench config set --path github.owner --value "bravellian"`
+- `workbench config credentials set --key <KEY> --value "<...>" [--path <path>]`
+  - Write or update a credentials.env entry (defaults to `.workbench/credentials.env`).
+  - Example: `workbench config credentials set --key WORKBENCH_AI_OPENAI_KEY --value "<...>"`
+- `workbench config credentials unset --key <KEY> [--path <path>]`
+  - Remove a credentials.env entry.
+  - Example: `workbench config credentials unset --key WORKBENCH_AI_OPENAI_KEY`
 
 - `workbench item new --type <bug|task|spike> --title "<...>" [--status <...>] [--priority <...>] [--owner <...>]`
   - Create a new work item in `work/items` using templates and ID allocation.
@@ -111,6 +120,9 @@ Commands:
 - `workbench item close <ID> [--move]`
   - Set status to `done`; optionally move the file to `work/done`.
   - Example: `workbench item close TASK-0042 --move`
+- `workbench item delete <ID> [--keep-links]`
+  - Delete a work item file and remove doc backlinks (unless `--keep-links`).
+  - Example: `workbench item delete TASK-0042`
 
 - `workbench item move <ID> --to <path>`
   - Move a work item file and update inbound links to the old path where possible.
@@ -135,6 +147,9 @@ Commands:
 - `workbench doc new --type <spec|adr|doc|runbook|guide> --title "<...>" [--path <...>] [--work-item <ID...>] [--code-ref <ref...>] [--force]`
   - Create a documentation file with Workbench front matter and optional backlinks.
   - Example: `workbench doc new --type spec --title "Payment flow" --work-item TASK-0042`
+- `workbench doc delete --path <...> [--keep-links]`
+  - Delete a documentation file and remove links from work items (unless `--keep-links`).
+  - Example: `workbench doc delete --path docs/10-product/payment-flow.md`
 
 - `workbench doc link --type <spec|adr> --path <...> --work-item <ID...> [--dry-run]`
   - Link a doc to work items.

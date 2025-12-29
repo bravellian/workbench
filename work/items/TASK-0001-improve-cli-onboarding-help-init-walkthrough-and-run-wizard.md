@@ -6,14 +6,14 @@ priority: high
 owner: platform
 created: 2025-12-27
 updated: null
-tags: null
+tags: []
 related:
   specs:
     - /docs/10-product/feature-spec-cli-onboarding-wizard.md
   adrs:
     - /docs/40-decisions/ADR-2025-12-27-cli-onboarding-wizard.md
-  files: null
-  prs: null
+  files: []
+  prs: []
   issues:
     - "https://github.com/bravellian/workbench/issues/15"
   branches:

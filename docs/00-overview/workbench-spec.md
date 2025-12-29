@@ -315,6 +315,15 @@ Creates the default folder structure, templates, and config.
 #### workbench config show
 Print effective config (defaults + repo config).
 
+#### workbench config set --path <path> --value "<...>" [--json]
+Updates a config value by dot-path and writes to /.workbench/config.json.
+
+#### workbench config credentials set --key <KEY> --value "<...>" [--path <path>]
+Writes or updates a credentials.env entry (defaults to /.workbench/credentials.env).
+
+#### workbench config credentials unset --key <KEY> [--path <path>]
+Removes a credentials.env entry.
+
 #### workbench item new --type <bug|task|spike> --title "<...>" [--status <...>] [--priority <...>] [--owner <...>]
 Creates a new work item file in /work/items using templates and ID allocation rules.
 
@@ -333,8 +342,14 @@ Updates front matter status and updated. Optional note appended to a Notes secti
 #### workbench item close <ID> [--move]
 Sets status to done and optionally moves file to done dir.
 
+#### workbench item delete <ID> [--keep-links]
+Deletes a work item file and removes doc backlinks unless `--keep-links` is set.
+
 #### workbench doc new --type <spec|adr|doc|runbook|guide> --title "<...>" [--path <...>] [--work-item <ID...>] [--code-ref <ref...>] [--force]
 Creates a documentation file with Workbench front matter and optional backlinks.
+
+#### workbench doc delete --path <...> [--keep-links]
+Deletes a documentation file and removes work item links unless `--keep-links` is set.
 
 #### workbench doc link --type <spec|adr> --path <...> --work-item <ID...> [--dry-run]
 Links a spec/ADR doc to one or more work items.
@@ -445,7 +460,7 @@ Backlink rules for related.files:
 - A backlink is either a plain text mention of the ID or a markdown link to the work item file.
 Examples:
 - Plain text: `TASK-0042`
-- Markdown link: `[TASK-0042](/work/items/TASK-0042-add-promotion-workflow.md)`
+- Markdown link: `[TASK-0001](/work/items/TASK-0001-improve-cli-onboarding-help-init-walkthrough-and-run-wizard.md)`
 
 Doc cross-link rules:
 - ADRs in `/docs/40-decisions` must include a "Related specs" section with at least one link to a spec in `/docs/10-product` or `/docs/20-architecture`.

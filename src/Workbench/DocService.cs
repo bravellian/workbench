@@ -452,7 +452,7 @@ public static class DocService
         return Path.Combine(dir, $"{slug}.md");
     }
 
-    private static string ResolveDocPath(string repoRoot, string link)
+    public static string ResolveDocPath(string repoRoot, string link)
     {
         var trimmed = link.Trim();
         if (trimmed.StartsWith("<", StringComparison.Ordinal) && trimmed.EndsWith(">", StringComparison.Ordinal))
