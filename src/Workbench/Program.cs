@@ -45,6 +45,21 @@ public class Program
         return string.Equals(left?.Trim(), right?.Trim(), StringComparison.Ordinal);
     }
 
+    static void PrintDeprecation(string oldCommand, string newCommand)
+    {
+        Console.WriteLine($"Deprecated: `{oldCommand}`. Use `{newCommand}` instead.");
+    }
+
+    static bool TryResolveDocLinkType(string? type, out string resolved)
+    {
+        resolved = (type ?? string.Empty).Trim().ToLowerInvariant();
+        if (resolved is "spec" or "adr")
+        {
+            return true;
+        }
+        return false;
+    }
+
     static string ExtractSection(string body, string heading)
     {
         var lines = body.Replace("\r\n", "\n").Split('\n');
@@ -1039,6 +1054,55 @@ public class Program
         var prUrl = await GithubService.CreatePullRequestAsync(repoRoot, config, prRepo, prTitle, prBody, baseBranch ?? config.Git.DefaultBaseBranch, isDraft).ConfigureAwait(false);
         WorkItemService.AddPrLink(item.Path, prUrl);
         return prUrl;
+    }
+
+    static async Task HandlePrCreateAsync(
+        string? repo,
+        string format,
+        string id,
+        string? baseBranch,
+        bool draft,
+        bool fill,
+        string? deprecatedMessage)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(deprecatedMessage))
+            {
+                Console.WriteLine(deprecatedMessage);
+            }
+
+            var repoRoot = ResolveRepo(repo);
+            var resolvedFormat = ResolveFormat(format);
+            var config = WorkbenchConfig.Load(repoRoot, out var configError);
+            if (configError is not null)
+            {
+                Console.WriteLine($"Config error: {configError}");
+                SetExitCode(2);
+                return;
+            }
+            var path = WorkItemService.GetItemPathById(repoRoot, config, id);
+            var item = WorkItemService.LoadItem(path) ?? throw new InvalidOperationException("Invalid work item.");
+            var prUrl = await CreatePrAsync(repoRoot, config, item, baseBranch, draft, fill).ConfigureAwait(false);
+
+            if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+            {
+                var payload = new PrOutput(
+                    true,
+                    new PrData(prUrl, item.Id));
+                WriteJson(payload, WorkbenchJsonContext.Default.PrOutput);
+            }
+            else
+            {
+                Console.WriteLine(prUrl);
+            }
+            SetExitCode(0);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            SetExitCode(2);
+        }
     }
 
     static string ResolveIssueType(GithubIssue issue, string? overrideType)
@@ -2737,7 +2801,7 @@ public class Program
         });
         root.Subcommands.Add(promoteCommand);
 
-        var prCommand = new Command("pr", "Group: pull request commands.");
+        var prCommand = new Command("pr", "Group: pull request commands (deprecated; use github pr).");
         var prCreateCommand = new Command("create", "Create a GitHub PR via the configured provider and backlink the PR URL.");
         var prIdArg = new Argument<string>("id")
         {
@@ -2761,48 +2825,51 @@ public class Program
         prCreateCommand.Options.Add(prFillOption);
         prCreateCommand.SetAction(async parseResult =>
         {
-            try
-            {
-                var repo = parseResult.GetValue(repoOption);
-                var format = parseResult.GetValue(formatOption) ?? "table";
-                var id = parseResult.GetValue(prIdArg) ?? string.Empty;
-                var baseBranch = parseResult.GetValue(prBaseOption);
-                var draft = parseResult.GetValue(prDraftOption);
-                var fill = parseResult.GetValue(prFillOption);
-                var repoRoot = ResolveRepo(repo);
-                var resolvedFormat = ResolveFormat(format);
-                var config = WorkbenchConfig.Load(repoRoot, out var configError);
-                if (configError is not null)
-                {
-                    Console.WriteLine($"Config error: {configError}");
-                    SetExitCode(2);
-                    return;
-                }
-                var path = WorkItemService.GetItemPathById(repoRoot, config, id);
-                var item = WorkItemService.LoadItem(path) ?? throw new InvalidOperationException("Invalid work item.");
-                var prUrl = await CreatePrAsync(repoRoot, config, item, baseBranch, draft, fill).ConfigureAwait(false);
-
-                if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
-                {
-                    var payload = new PrOutput(
-                        true,
-                        new PrData(prUrl, item.Id));
-                    WriteJson(payload, WorkbenchJsonContext.Default.PrOutput);
-                }
-                else
-                {
-                    Console.WriteLine(prUrl);
-                }
-                SetExitCode(0);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-                SetExitCode(2);
-            }
+            var repo = parseResult.GetValue(repoOption);
+            var format = parseResult.GetValue(formatOption) ?? "table";
+            var id = parseResult.GetValue(prIdArg) ?? string.Empty;
+            var baseBranch = parseResult.GetValue(prBaseOption);
+            var draft = parseResult.GetValue(prDraftOption);
+            var fill = parseResult.GetValue(prFillOption);
+            await HandlePrCreateAsync(
+                repo,
+                format,
+                id,
+                baseBranch,
+                draft,
+                fill,
+                "Deprecated: `workbench pr create`. Use `workbench github pr create` instead.").ConfigureAwait(false);
         });
         prCommand.Subcommands.Add(prCreateCommand);
         root.Subcommands.Add(prCommand);
+
+        var githubCommand = new Command("github", "Group: GitHub commands.");
+        var githubPrCommand = new Command("pr", "Group: GitHub pull request commands.");
+        var githubPrCreateCommand = new Command("create", "Create a GitHub PR via the configured provider and backlink the PR URL.");
+        githubPrCreateCommand.Arguments.Add(prIdArg);
+        githubPrCreateCommand.Options.Add(prBaseOption);
+        githubPrCreateCommand.Options.Add(prDraftOption);
+        githubPrCreateCommand.Options.Add(prFillOption);
+        githubPrCreateCommand.SetAction(async parseResult =>
+        {
+            var repo = parseResult.GetValue(repoOption);
+            var format = parseResult.GetValue(formatOption) ?? "table";
+            var id = parseResult.GetValue(prIdArg) ?? string.Empty;
+            var baseBranch = parseResult.GetValue(prBaseOption);
+            var draft = parseResult.GetValue(prDraftOption);
+            var fill = parseResult.GetValue(prFillOption);
+            await HandlePrCreateAsync(
+                repo,
+                format,
+                id,
+                baseBranch,
+                draft,
+                fill,
+                null).ConfigureAwait(false);
+        });
+        githubPrCommand.Subcommands.Add(githubPrCreateCommand);
+        githubCommand.Subcommands.Add(githubPrCommand);
+        root.Subcommands.Add(githubCommand);
 
         var docCommand = new Command("doc", "Group: documentation commands.");
 
@@ -2854,6 +2921,90 @@ public class Program
             var codeRefs = parseResult.GetValue(docCodeRefOption) ?? Array.Empty<string>();
             var force = parseResult.GetValue(docForceOption);
             HandleDocCreate(repo, format, type, title, path, workItems, codeRefs, force);
+        });
+
+        var docLinkCommand = new Command("link", "Link a doc to work items.");
+        var docLinkTypeOption = new Option<string>("--type")
+        {
+            Description = "Doc type: spec, adr",
+            Required = true
+        };
+        docLinkTypeOption.CompletionSources.Add("spec", "adr");
+        var docLinkPathOption = new Option<string>("--path")
+        {
+            Description = "Doc path.",
+            Required = true
+        };
+        var docLinkWorkItemOption = new Option<string[]>("--work-item")
+        {
+            Description = "Work item ID(s) to link.",
+            AllowMultipleArgumentsPerToken = true
+        };
+        var docLinkDryRunOption = new Option<bool>("--dry-run")
+        {
+            Description = "Report changes without writing files."
+        };
+        docLinkCommand.Options.Add(docLinkTypeOption);
+        docLinkCommand.Options.Add(docLinkPathOption);
+        docLinkCommand.Options.Add(docLinkWorkItemOption);
+        docLinkCommand.Options.Add(docLinkDryRunOption);
+        docLinkCommand.SetAction(parseResult =>
+        {
+            var repo = parseResult.GetValue(repoOption);
+            var format = parseResult.GetValue(formatOption) ?? "table";
+            var type = parseResult.GetValue(docLinkTypeOption);
+            if (!TryResolveDocLinkType(type, out var resolvedType))
+            {
+                Console.WriteLine("Doc type must be spec or adr.");
+                SetExitCode(2);
+                return;
+            }
+            var path = parseResult.GetValue(docLinkPathOption) ?? string.Empty;
+            var workItems = parseResult.GetValue(docLinkWorkItemOption) ?? Array.Empty<string>();
+            var dryRun = parseResult.GetValue(docLinkDryRunOption);
+            HandleDocLink(repo, format, resolvedType, path, workItems, add: true, dryRun: dryRun);
+        });
+
+        var docUnlinkCommand = new Command("unlink", "Unlink a doc from work items.");
+        var docUnlinkTypeOption = new Option<string>("--type")
+        {
+            Description = "Doc type: spec, adr",
+            Required = true
+        };
+        docUnlinkTypeOption.CompletionSources.Add("spec", "adr");
+        var docUnlinkPathOption = new Option<string>("--path")
+        {
+            Description = "Doc path.",
+            Required = true
+        };
+        var docUnlinkWorkItemOption = new Option<string[]>("--work-item")
+        {
+            Description = "Work item ID(s) to unlink.",
+            AllowMultipleArgumentsPerToken = true
+        };
+        var docUnlinkDryRunOption = new Option<bool>("--dry-run")
+        {
+            Description = "Report changes without writing files."
+        };
+        docUnlinkCommand.Options.Add(docUnlinkTypeOption);
+        docUnlinkCommand.Options.Add(docUnlinkPathOption);
+        docUnlinkCommand.Options.Add(docUnlinkWorkItemOption);
+        docUnlinkCommand.Options.Add(docUnlinkDryRunOption);
+        docUnlinkCommand.SetAction(parseResult =>
+        {
+            var repo = parseResult.GetValue(repoOption);
+            var format = parseResult.GetValue(formatOption) ?? "table";
+            var type = parseResult.GetValue(docUnlinkTypeOption);
+            if (!TryResolveDocLinkType(type, out var resolvedType))
+            {
+                Console.WriteLine("Doc type must be spec or adr.");
+                SetExitCode(2);
+                return;
+            }
+            var path = parseResult.GetValue(docUnlinkPathOption) ?? string.Empty;
+            var workItems = parseResult.GetValue(docUnlinkWorkItemOption) ?? Array.Empty<string>();
+            var dryRun = parseResult.GetValue(docUnlinkDryRunOption);
+            HandleDocLink(repo, format, resolvedType, path, workItems, add: false, dryRun: dryRun);
         });
 
         var docSyncCommand = new Command("sync", "Sync doc/work item backlinks.");
@@ -3047,6 +3198,8 @@ public class Program
         });
 
         docCommand.Subcommands.Add(docNewCommand);
+        docCommand.Subcommands.Add(docLinkCommand);
+        docCommand.Subcommands.Add(docUnlinkCommand);
         docCommand.Subcommands.Add(docSyncCommand);
         docCommand.Subcommands.Add(docSummaryCommand);
         root.Subcommands.Add(docCommand);
@@ -3374,7 +3527,7 @@ public class Program
         });
         root.Subcommands.Add(syncCommand);
 
-        var specCommand = new Command("spec", "Group: spec documentation commands.");
+        var specCommand = new Command("spec", "Group: spec documentation commands (deprecated; use doc --type spec).");
         var specNewCommand = new Command("new", "Create a spec document and auto-link work items.");
         specNewCommand.Options.Add(docTitleOption);
         specNewCommand.Options.Add(docPathOption);
@@ -3390,6 +3543,7 @@ public class Program
             var workItems = parseResult.GetValue(docWorkItemOption) ?? Array.Empty<string>();
             var codeRefs = parseResult.GetValue(docCodeRefOption) ?? Array.Empty<string>();
             var force = parseResult.GetValue(docForceOption);
+            PrintDeprecation("workbench spec new", "workbench doc new --type spec");
             HandleDocCreate(repo, format, "spec", title, path, workItems, codeRefs, force);
         });
         specCommand.Subcommands.Add(specNewCommand);
@@ -3418,6 +3572,7 @@ public class Program
             var path = parseResult.GetValue(specLinkPathOption) ?? string.Empty;
             var workItems = parseResult.GetValue(specLinkWorkItemOption) ?? Array.Empty<string>();
             var dryRun = parseResult.GetValue(specLinkDryRunOption);
+            PrintDeprecation("workbench spec link", "workbench doc link --type spec");
             HandleDocLink(repo, format, "spec", path, workItems, add: true, dryRun: dryRun);
         });
         specCommand.Subcommands.Add(specLinkCommand);
@@ -3447,12 +3602,13 @@ public class Program
             var path = parseResult.GetValue(specUnlinkPathOption) ?? string.Empty;
             var workItems = parseResult.GetValue(specUnlinkWorkItemOption) ?? Array.Empty<string>();
             var dryRun = parseResult.GetValue(specUnlinkDryRunOption);
+            PrintDeprecation("workbench spec unlink", "workbench doc unlink --type spec");
             HandleDocLink(repo, format, "spec", path, workItems, add: false, dryRun: dryRun);
         });
         specCommand.Subcommands.Add(specUnlinkCommand);
         root.Subcommands.Add(specCommand);
 
-        var adrCommand = new Command("adr", "Group: ADR documentation commands.");
+        var adrCommand = new Command("adr", "Group: ADR documentation commands (deprecated; use doc --type adr).");
         var adrNewCommand = new Command("new", "Create an ADR document and auto-link work items.");
         adrNewCommand.Options.Add(docTitleOption);
         adrNewCommand.Options.Add(docPathOption);
@@ -3468,6 +3624,7 @@ public class Program
             var workItems = parseResult.GetValue(docWorkItemOption) ?? Array.Empty<string>();
             var codeRefs = parseResult.GetValue(docCodeRefOption) ?? Array.Empty<string>();
             var force = parseResult.GetValue(docForceOption);
+            PrintDeprecation("workbench adr new", "workbench doc new --type adr");
             HandleDocCreate(repo, format, "adr", title, path, workItems, codeRefs, force);
         });
         adrCommand.Subcommands.Add(adrNewCommand);
@@ -3496,6 +3653,7 @@ public class Program
             var path = parseResult.GetValue(adrLinkPathOption) ?? string.Empty;
             var workItems = parseResult.GetValue(adrLinkWorkItemOption) ?? Array.Empty<string>();
             var dryRun = parseResult.GetValue(adrLinkDryRunOption);
+            PrintDeprecation("workbench adr link", "workbench doc link --type adr");
             HandleDocLink(repo, format, "adr", path, workItems, add: true, dryRun: dryRun);
         });
         adrCommand.Subcommands.Add(adrLinkCommand);
@@ -3525,6 +3683,7 @@ public class Program
             var path = parseResult.GetValue(adrUnlinkPathOption) ?? string.Empty;
             var workItems = parseResult.GetValue(adrUnlinkWorkItemOption) ?? Array.Empty<string>();
             var dryRun = parseResult.GetValue(adrUnlinkDryRunOption);
+            PrintDeprecation("workbench adr unlink", "workbench doc unlink --type adr");
             HandleDocLink(repo, format, "adr", path, workItems, add: false, dryRun: dryRun);
         });
         adrCommand.Subcommands.Add(adrUnlinkCommand);

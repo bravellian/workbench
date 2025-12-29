@@ -306,7 +306,7 @@ Runs the `run` wizard afterward unless `--skip-wizard` is set.
 #### workbench run
 Launches the interactive wizard for common document/work item actions.
 
-#### workbench sync [--items] [--docs] [--nav] [--issues <true|false>] [--include-done] [--force] [--dry-run] [--prefer <local|github>]
+#### workbench sync [--items] [--docs] [--nav] [--issues <true|false>] [--import-issues] [--include-done] [--force] [--dry-run] [--prefer <local|github>]
 Runs the full repository sync in order: work items ↔ GitHub issues, doc backlinks/front matter, then navigation indexes. When no step flags are provided, runs all.
 
 #### workbench scaffold [--force]
@@ -333,6 +333,21 @@ Updates front matter status and updated. Optional note appended to a Notes secti
 #### workbench item close <ID> [--move]
 Sets status to done and optionally moves file to done dir.
 
+#### workbench doc new --type <spec|adr|doc|runbook|guide> --title "<...>" [--path <...>] [--work-item <ID...>] [--code-ref <ref...>] [--force]
+Creates a documentation file with Workbench front matter and optional backlinks.
+
+#### workbench doc link --type <spec|adr> --path <...> --work-item <ID...> [--dry-run]
+Links a spec/ADR doc to one or more work items.
+
+#### workbench doc unlink --type <spec|adr> --path <...> --work-item <ID...> [--dry-run]
+Unlinks a spec/ADR doc from one or more work items.
+
+#### workbench doc sync [--all] [--issues] [--include-done] [--dry-run]
+Syncs doc/work item backlinks and front matter.
+
+#### workbench doc summarize [--staged] [--path <path...>] [--dry-run] [--update-index]
+Summarizes markdown diffs with AI and appends change notes.
+
 #### workbench board regen
 Regenerates /work/WORKBOARD.md with sections based on status:
 - Now: in-progress
@@ -358,7 +373,7 @@ Promotion workflow:
 --pr creates a GitHub PR and backfills related.prs on success.
 --draft and --no-draft override the default draft behavior.
 
-#### workbench pr create <ID> [--base <branch>] [--draft] [--fill]
+#### workbench github pr create <ID> [--base <branch>] [--draft] [--fill]
 Creates a GitHub PR using the configured provider:
 - PR title: <ID>: <title>
 - PR body: summary + acceptance criteria + related links

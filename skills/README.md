@@ -8,3 +8,4 @@ and sync.
 - `skills/workbench-architecture`: capture architecture and ADR decisions.
 - `skills/workbench-work-items`: manage work items and links.
 - `skills/workbench-sync`: sync work items with GitHub issues and branches.
+- `skills/workbench-github`: create GitHub PRs from work items.

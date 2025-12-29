@@ -24,7 +24,7 @@ workbench.ps1 doc new --type doc --title "Title" --path docs/10-product/title.md
 
 Create a spec:
 ```bash
-workbench.ps1 spec new --title "Title" --path docs/10-product/title.md --work-item TASK-0001
+workbench.ps1 doc new --type spec --title "Title" --path docs/10-product/title.md --work-item TASK-0001
 ```
 
 Create an architecture doc:
@@ -35,6 +35,16 @@ workbench.ps1 doc new --type doc --title "System design" --path docs/20-architec
 Create an ADR:
 ```bash
 workbench.ps1 doc new --type adr --title "Decision" --path docs/40-decisions/ADR-YYYY-MM-DD-title.md --work-item TASK-0001
+```
+
+Link a doc to work items:
+```bash
+workbench.ps1 doc link --type spec --path docs/10-product/title.md --work-item TASK-0001
+```
+
+Unlink a doc from work items:
+```bash
+workbench.ps1 doc unlink --type adr --path docs/40-decisions/ADR-YYYY-MM-DD-title.md --work-item TASK-0001
 ```
 
 Sync front matter and backlinks:
@@ -59,3 +69,4 @@ workbench.ps1 doc summarize --staged --update-index
 - Always link docs to relevant work items with `--work-item` or `workbench.ps1 item link`.
 - For major changes, write a spec before implementation.
 - When decisions change, update or create the ADR.
+- Prefer `workbench.ps1 doc` commands; `workbench.ps1 spec` and `workbench.ps1 adr` are deprecated.

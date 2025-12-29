@@ -136,6 +136,14 @@ Commands:
   - Create a documentation file with Workbench front matter and optional backlinks.
   - Example: `workbench doc new --type spec --title "Payment flow" --work-item TASK-0042`
 
+- `workbench doc link --type <spec|adr> --path <...> --work-item <ID...> [--dry-run]`
+  - Link a doc to work items.
+  - Example: `workbench doc link --type spec --path docs/10-product/access-model.md --work-item TASK-0100`
+
+- `workbench doc unlink --type <spec|adr> --path <...> --work-item <ID...> [--dry-run]`
+  - Unlink a doc from work items.
+  - Example: `workbench doc unlink --type adr --path docs/40-decisions/2025-01-01-audit-logs.md --work-item TASK-0123`
+
 - `workbench doc sync [--all] [--issues] [--include-done] [--dry-run]`
   - Sync doc/work item backlinks. `--all` adds Workbench front matter to all docs; `--issues` syncs GitHub issue links; `--include-done` includes done/dropped items; `--dry-run` reports changes without writing.
   - Example: `workbench doc sync --all --issues --dry-run`
@@ -148,36 +156,13 @@ Commands:
   - Summarize markdown diffs using AI and append `workbench.changeNotes` entries.
   - Example: `workbench doc summarize --staged --update-index`
 
-- `workbench spec new --title "<...>" [--path <...>] [--work-item <ID...>] [--code-ref <ref...>] [--force]`
-  - Create a spec document and auto-link work items.
-  - Example: `workbench spec new --title "Access model" --work-item TASK-0100`
-
-- `workbench spec link --path <...> --work-item <ID...> [--dry-run]`
-  - Link a spec document to work items.
-  - Example: `workbench spec link --path /docs/10-product/access-model.md --work-item TASK-0100`
-
-- `workbench spec unlink --path <...> --work-item <ID...> [--dry-run]`
-  - Unlink a spec document from work items.
-  - Example: `workbench spec unlink --path /docs/10-product/access-model.md --work-item TASK-0100`
-
-- `workbench adr new --title "<...>" [--path <...>] [--work-item <ID...>] [--code-ref <ref...>] [--force]`
-  - Create an ADR document and auto-link work items.
-  - Example: `workbench adr new --title "Persist audit logs" --work-item TASK-0123`
-
-- `workbench adr link --path <...> --work-item <ID...> [--dry-run]`
-  - Link an ADR document to work items.
-  - Example: `workbench adr link --path /docs/40-decisions/2025-01-01-audit-logs.md --work-item TASK-0123`
-
-- `workbench adr unlink --path <...> --work-item <ID...> [--dry-run]`
-  - Unlink an ADR document from work items.
-  - Example: `workbench adr unlink --path /docs/40-decisions/2025-01-01-audit-logs.md --work-item TASK-0123`
 - `workbench promote --type <...> --title "<...>" [--push] [--start] [--pr] [--base <branch>] [--draft|--no-draft]`
   - Create a work item, branch, and commit in one step; optionally create a PR.
   - Example: `workbench promote --type task --title "Add validate command" --start --pr --draft`
 
-- `workbench pr create <ID> [--base <branch>] [--draft] [--fill]`
+- `workbench github pr create <ID> [--base <branch>] [--draft] [--fill]`
   - Create a GitHub PR via the configured provider and backlink the PR URL.
-  - Example: `workbench pr create TASK-0042 --draft --fill`
+  - Example: `workbench github pr create TASK-0042 --draft --fill`
 
 - `workbench validate [--strict]`
   - Validate work items, links, and schemas. `--strict` treats warnings as errors.
@@ -188,6 +173,11 @@ Commands:
 
 Aliases and intent:
 - "verify all work" maps to `workbench validate` (use `--strict` for CI).
+
+Deprecated commands:
+- `workbench spec new/link/unlink` -> `workbench doc new/link/unlink --type spec`
+- `workbench adr new/link/unlink` -> `workbench doc new/link/unlink --type adr`
+- `workbench pr create` -> `workbench github pr create`
 
 Dependencies:
 - Commands that read or write work items require a git repo.

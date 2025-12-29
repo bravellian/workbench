@@ -268,7 +268,9 @@ Data:
 }
 ```
 
-## workbench pr create
+## workbench github pr create
+
+Deprecated: `workbench pr create` (use `workbench github pr create`).
 
 Data:
 ```json

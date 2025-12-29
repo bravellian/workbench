@@ -24,7 +24,7 @@ workbench doc new --type doc --title "Title" --path docs/10-product/title.md --w
 
 Create a spec:
 ```bash
-workbench spec new --title "Title" --path docs/10-product/title.md --work-item TASK-0001
+workbench doc new --type spec --title "Title" --path docs/10-product/title.md --work-item TASK-0001
 ```
 
 Create an architecture doc:
@@ -35,6 +35,16 @@ workbench doc new --type doc --title "System design" --path docs/20-architecture
 Create an ADR:
 ```bash
 workbench doc new --type adr --title "Decision" --path docs/40-decisions/ADR-YYYY-MM-DD-title.md --work-item TASK-0001
+```
+
+Link a doc to work items:
+```bash
+workbench doc link --type spec --path docs/10-product/title.md --work-item TASK-0001
+```
+
+Unlink a doc from work items:
+```bash
+workbench doc unlink --type adr --path docs/40-decisions/ADR-YYYY-MM-DD-title.md --work-item TASK-0001
 ```
 
 Sync front matter and backlinks:
@@ -59,3 +69,4 @@ workbench doc summarize --staged --update-index
 - Always link docs to relevant work items with `--work-item` or `workbench item link`.
 - For major changes, write a spec before implementation.
 - When decisions change, update or create the ADR.
+- Prefer `workbench doc` commands; `workbench spec` and `workbench adr` are deprecated.

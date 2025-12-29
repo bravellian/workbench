@@ -19,7 +19,7 @@ description: Sync workflows for Workbench CLI. Use when aligning local work item
 
 Dry-run sync:
 ```bash
-workbench item sync --dry-run
+workbench sync --dry-run
 ```
 
 Sync a specific item and prefer GitHub content:
@@ -29,7 +29,12 @@ workbench item sync --id TASK-0001 --prefer github
 
 Bulk sync (local wins on conflicts):
 ```bash
-workbench item sync
+workbench sync --items
+```
+
+Import unlinked GitHub issues (slower):
+```bash
+workbench sync --items --import-issues
 ```
 
 Sync doc backlinks (include done items when needed):
@@ -47,5 +52,6 @@ workbench doc sync --all --include-done
 ## Guardrails
 
 - Use `--dry-run` before creating issues or branches.
+- `workbench sync` defaults to linked work items only; use `--import-issues` to pull unlinked GitHub issues.
 - Terminal items (done/dropped) do not create issues or branches by default.
 - Sync is not a replacement for specs/ADRs; create or update them during planning.
