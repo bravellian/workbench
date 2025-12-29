@@ -400,7 +400,10 @@ Moves a work item file and updates inbound links to the old path where possible.
 #### workbench item rename <ID> --title "<...>"
 Renames the work item file by regenerating the slug and updates inbound links.
 
-#### workbench validate [--strict]
+#### workbench item normalize [--include-done] [--dry-run]
+Normalizes work item front matter lists (tags and related lists).
+
+#### workbench validate [--strict] [--link-include <path...>] [--link-exclude <path...>] [--skip-doc-schema]
 Validates:
 - front matter schema correctness
 - ID/filename consistency

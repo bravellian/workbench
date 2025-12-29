@@ -220,7 +220,8 @@ public sealed class OctokitGithubProvider : IGithubProvider
         const string Query = """
             query($owner: String!, $name: String!, $number: Int!) {
               repository(owner: $owner, name: $name) {
-                issue(number: $number) {
+                issueOrPullRequest(number: $number) {
+                  __typename
                   number
                   title
                   body
@@ -279,11 +280,16 @@ public sealed class OctokitGithubProvider : IGithubProvider
     private static GithubIssue ParseIssueGraphql(string json, GithubIssueRef issueRef)
     {
         using var document = JsonDocument.Parse(json);
+        var errorMessage = TryReadGraphqlErrors(document.RootElement);
         if (!document.RootElement.TryGetProperty("data", out var data)
             || !data.TryGetProperty("repository", out var repoElement)
-            || !repoElement.TryGetProperty("issue", out var issueElement)
+            || !repoElement.TryGetProperty("issueOrPullRequest", out var issueElement)
             || issueElement.ValueKind == JsonValueKind.Null)
         {
+            if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                throw new InvalidOperationException($"GitHub GraphQL error for {issueRef.Repo.Owner}/{issueRef.Repo.Repo}#{issueRef.Number}: {errorMessage}");
+            }
             throw new InvalidOperationException($"Issue not found: {issueRef.Repo.Owner}/{issueRef.Repo.Repo}#{issueRef.Number}");
         }
 
@@ -355,6 +361,30 @@ public sealed class OctokitGithubProvider : IGithubProvider
             state,
             labels,
             pullRequests.ToList());
+    }
+
+    private static string? TryReadGraphqlErrors(JsonElement root)
+    {
+        if (!root.TryGetProperty("errors", out var errorsElement)
+            || errorsElement.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var messages = new List<string>();
+        foreach (var error in errorsElement.EnumerateArray())
+        {
+            if (error.TryGetProperty("message", out var messageElement))
+            {
+                var message = messageElement.GetString();
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    messages.Add(message);
+                }
+            }
+        }
+
+        return messages.Count == 0 ? null : string.Join("; ", messages);
     }
 
     private static JsonElement? TryGetPullRequestElement(JsonElement node, string property)

@@ -34,6 +34,7 @@ It is intentionally capability-first rather than a full command catalog.
 - Close an item and optionally move it to `work/done` -> `workbench item close`
 - Delete work items and remove doc backlinks -> `workbench item delete`
 - Move or rename items and update inbound links -> `workbench item move`, `workbench item rename`
+- Normalize work item front matter lists -> `workbench item normalize`
 - Link/unlink specs, ADRs, files, PRs, and issues -> `workbench item link`, `workbench item unlink`
 - Regenerate the workboard -> `workbench board regen`
 

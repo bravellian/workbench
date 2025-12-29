@@ -6,4 +6,5 @@ public sealed record ItemSyncData(
     [property: JsonPropertyName("issuesUpdated")] IList<ItemSyncIssueUpdateEntry> IssuesUpdated,
     [property: JsonPropertyName("itemsUpdated")] IList<ItemSyncItemUpdateEntry> ItemsUpdated,
     [property: JsonPropertyName("branchesCreated")] IList<ItemSyncBranchEntry> BranchesCreated,
+    [property: JsonPropertyName("warnings")] IList<string> Warnings,
     [property: JsonPropertyName("dryRun")] bool DryRun);

@@ -22,6 +22,7 @@ namespace Workbench;
 [JsonSerializable(typeof(ItemRenameOutput))]
 [JsonSerializable(typeof(ItemImportOutput))]
 [JsonSerializable(typeof(ItemSyncOutput))]
+[JsonSerializable(typeof(ItemNormalizeOutput))]
 [JsonSerializable(typeof(BoardOutput))]
 [JsonSerializable(typeof(PromoteOutput))]
 [JsonSerializable(typeof(PrOutput))]

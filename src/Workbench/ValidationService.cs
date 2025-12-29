@@ -6,8 +6,9 @@ namespace Workbench;
 
 public static class ValidationService
 {
-    public static ValidationResult ValidateRepo(string repoRoot, WorkbenchConfig config)
+    public static ValidationResult ValidateRepo(string repoRoot, WorkbenchConfig config, ValidationOptions? options = null)
     {
+        options ??= new ValidationOptions();
         var result = new ValidationResult();
         var configErrors = SchemaValidationService.ValidateConfig(repoRoot);
         foreach (var error in configErrors)
@@ -18,8 +19,8 @@ public static class ValidationService
         result.WorkItemCount = items.Count;
         ValidateItems(repoRoot, items, config, result);
         var itemIndex = LoadItemIndex(items);
-        ValidateDocs(repoRoot, config, itemIndex, result);
-        result.MarkdownFileCount = ValidateMarkdownLinks(repoRoot, result);
+        ValidateDocs(repoRoot, config, itemIndex, result, options);
+        result.MarkdownFileCount = ValidateMarkdownLinks(repoRoot, result, options);
         return result;
     }
 
@@ -145,12 +146,20 @@ public static class ValidationService
         string repoRoot,
         WorkbenchConfig config,
         Dictionary<string, WorkItem> itemsById,
-        ValidationResult result)
+        ValidationResult result,
+        ValidationOptions options)
     {
         var docsRoot = Path.Combine(repoRoot, config.Paths.DocsRoot);
         if (!Directory.Exists(docsRoot))
         {
             return;
+        }
+
+        var docSchemaPath = Path.Combine(repoRoot, "docs", "30-contracts", "doc.schema.json");
+        var docSchemaExists = File.Exists(docSchemaPath);
+        if (!docSchemaExists && !options.SkipDocSchema)
+        {
+            result.Errors.Add($"doc schema not found at {docSchemaPath}");
         }
 
         foreach (var file in Directory.EnumerateFiles(docsRoot, "*.md", SearchOption.AllDirectories))
@@ -172,10 +181,13 @@ public static class ValidationService
                 continue;
             }
 
-            var schemaErrors = SchemaValidationService.ValidateDocFrontMatter(repoRoot, file, data);
-            foreach (var schemaError in schemaErrors)
+            if (docSchemaExists && !options.SkipDocSchema)
             {
-                result.Errors.Add(schemaError);
+                var schemaErrors = SchemaValidationService.ValidateDocFrontMatter(repoRoot, file, data);
+                foreach (var schemaError in schemaErrors)
+                {
+                    result.Errors.Add(schemaError);
+                }
             }
 
             var docType = GetString(workbench, "type") ?? "doc";
@@ -304,11 +316,18 @@ public static class ValidationService
         return Path.GetFullPath(Path.Combine(baseDir, link));
     }
 
-    private static int ValidateMarkdownLinks(string repoRoot, ValidationResult result)
+    private static int ValidateMarkdownLinks(string repoRoot, ValidationResult result, ValidationOptions options)
     {
+        var includePrefixes = NormalizePrefixes(options.LinkInclude);
+        var excludePrefixes = NormalizePrefixes(options.LinkExclude);
         var count = 0;
         foreach (var file in EnumerateMarkdownFiles(repoRoot))
         {
+            var repoRelative = NormalizeRepoRelative(repoRoot, file);
+            if (!ShouldValidatePath(repoRelative, includePrefixes, excludePrefixes))
+            {
+                continue;
+            }
             count++;
             var content = File.ReadAllText(file);
             foreach (var link in ExtractMarkdownLinks(content))
@@ -319,7 +338,9 @@ public static class ValidationService
                     continue;
                 }
 
-                if (target.StartsWith("#", StringComparison.OrdinalIgnoreCase) ||
+                if (target.Contains("{{", StringComparison.Ordinal) ||
+                    target.Contains("}}", StringComparison.Ordinal) ||
+                    target.StartsWith("#", StringComparison.OrdinalIgnoreCase) ||
                     target.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                     target.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
                     target.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
@@ -396,6 +417,43 @@ public static class ValidationService
                 yield return linkGroup.Value.Trim();
             }
         }
+    }
+
+    private static string NormalizeRepoRelative(string repoRoot, string path)
+    {
+        var relative = Path.GetRelativePath(repoRoot, path).Replace('\\', '/');
+        return relative.TrimStart('/');
+    }
+
+    private static List<string> NormalizePrefixes(IList<string>? prefixes)
+    {
+        if (prefixes is null || prefixes.Count == 0)
+        {
+            return new List<string>();
+        }
+
+        return prefixes
+            .Where(entry => !string.IsNullOrWhiteSpace(entry))
+            .Select(entry => entry.Trim().TrimStart('/').Replace('\\', '/').TrimEnd('/'))
+            .Where(entry => entry.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool ShouldValidatePath(string repoRelative, List<string> includePrefixes, List<string> excludePrefixes)
+    {
+        if (excludePrefixes.Count > 0 &&
+            excludePrefixes.Any(prefix => repoRelative.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (includePrefixes.Count == 0)
+        {
+            return true;
+        }
+
+        return includePrefixes.Any(prefix => repoRelative.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string? GetString(IDictionary<string, object?> data, string key)

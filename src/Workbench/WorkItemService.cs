@@ -364,6 +364,32 @@ public static class WorkItemService
         return updated;
     }
 
+    public static int NormalizeItems(string repoRoot, WorkbenchConfig config, bool includeDone, bool dryRun)
+    {
+        var updated = 0;
+        var items = ListItems(repoRoot, config, includeDone).Items;
+        foreach (var item in items)
+        {
+            var content = File.ReadAllText(item.Path);
+            if (!FrontMatter.TryParse(content, out var frontMatter, out var error))
+            {
+                throw new InvalidOperationException($"Front matter error: {error}");
+            }
+
+            var data = frontMatter!.Data;
+            var changed = NormalizeTags(data);
+            changed |= EnsureRelatedLists(data);
+
+            if (changed && !dryRun)
+            {
+                File.WriteAllText(item.Path, frontMatter.Serialize());
+                updated++;
+            }
+        }
+
+        return updated;
+    }
+
     public static WorkItem? LoadItem(string path)
     {
         var content = File.ReadAllText(path);
@@ -1008,5 +1034,70 @@ public static class WorkItemService
 
         related[key] = normalized.Cast<object?>().ToList();
         return true;
+    }
+
+    private static bool NormalizeTags(IDictionary<string, object?> data)
+    {
+        if (!data.TryGetValue("tags", out var value) || value is null)
+        {
+            data["tags"] = new List<string>();
+            return true;
+        }
+
+        if (value is string)
+        {
+            data["tags"] = new List<string>();
+            return true;
+        }
+
+        if (value is IEnumerable<object> enumerable)
+        {
+            var normalized = enumerable
+                .Select(item => item?.ToString() ?? string.Empty)
+                .Where(item => item.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var current = enumerable.Select(item => item?.ToString() ?? string.Empty).ToList();
+            if (!normalized.SequenceEqual(current, StringComparer.Ordinal))
+            {
+                data["tags"] = normalized;
+                return true;
+            }
+            return false;
+        }
+
+        data["tags"] = new List<string>();
+        return true;
+    }
+
+    private static bool EnsureRelatedLists(IDictionary<string, object?> data)
+    {
+        var changed = false;
+        var related = GetRelatedMap(data);
+        if (related is null)
+        {
+            related = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            data["related"] = related;
+            changed = true;
+        }
+
+        changed |= EnsureListChanged(related, "specs");
+        changed |= EnsureListChanged(related, "adrs");
+        changed |= EnsureListChanged(related, "files");
+        changed |= EnsureListChanged(related, "prs");
+        changed |= EnsureListChanged(related, "issues");
+        changed |= EnsureListChanged(related, "branches");
+
+        return changed;
+    }
+
+    private static bool EnsureListChanged(Dictionary<string, object?> data, string key)
+    {
+        var had = data.TryGetValue(key, out var value);
+        var wasList = value is List<object?>;
+        var wasEnumerable = value is IEnumerable<object> && value is not List<object?>;
+        _ = EnsureList(data, key);
+        return !had || value is null || wasEnumerable || !wasList;
     }
 }

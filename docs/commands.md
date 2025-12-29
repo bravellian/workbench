@@ -233,6 +233,9 @@ Data:
   "branchesCreated": [
     { "itemId": "TASK-0042", "branch": "TASK-0042-add-docs" }
   ],
+  "warnings": [
+    "Issue not found: org/repo#183"
+  ],
   "dryRun": false
 }
 ```
@@ -290,6 +293,16 @@ Data:
 {
   "item": { /* WorkItem */ },
   "docsUpdated": 2
+}
+```
+
+## workbench item normalize
+
+Data:
+```json
+{
+  "itemsUpdated": 3,
+  "dryRun": false
 }
 ```
 

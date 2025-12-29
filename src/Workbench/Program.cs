@@ -151,14 +151,29 @@ public class Program
         }
 
         var issueCache = new Dictionary<string, GithubIssue>(StringComparer.OrdinalIgnoreCase);
-        async Task<(GithubIssue, GithubIssueRef)> FetchIssueAsync(string issueLink)
+        var missingIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var warnings = new List<string>();
+        async Task<(GithubIssue? Issue, GithubIssueRef Ref)> TryFetchIssueAsync(string issueLink)
         {
             GithubIssueRef issueRef = GithubService.ParseIssueReference(issueLink, defaultRepo);
             var key = $"{issueRef.Repo.Display}#{issueRef.Number.ToString(CultureInfo.InvariantCulture)}";
+            if (missingIssues.Contains(key))
+            {
+                return (null, issueRef);
+            }
             if (!issueCache.TryGetValue(key, out var issue))
             {
-                issue = await GithubService.FetchIssueAsync(repoRoot, config, issueRef).ConfigureAwait(false);
-                issueCache[key] = issue;
+                try
+                {
+                    issue = await GithubService.FetchIssueAsync(repoRoot, config, issueRef).ConfigureAwait(false);
+                    issueCache[key] = issue;
+                }
+                catch (Exception ex)
+                {
+                    warnings.Add($"Issue fetch failed: {key} ({ex})");
+                    missingIssues.Add(key);
+                    return (null, issueRef);
+                }
             }
             return (issue, issueRef);
         }
@@ -170,8 +185,12 @@ public class Program
             var selected = new List<GithubIssue>();
             foreach (var input in issueInputs)
             {
-                var issueRef = GithubService.ParseIssueReference(input, defaultRepo);
-                selected.Add(await GithubService.FetchIssueAsync(repoRoot, config, issueRef).ConfigureAwait(false));
+                var (issue, _) = await TryFetchIssueAsync(input).ConfigureAwait(false);
+                if (issue is null)
+                {
+                    continue;
+                }
+                selected.Add(issue);
             }
             issuesToImport = selected;
         }
@@ -227,7 +246,11 @@ public class Program
                 continue;
             }
 
-            var (issue, issueRef) = await FetchIssueAsync(issueLink).ConfigureAwait(false);
+            var (issue, issueRef) = await TryFetchIssueAsync(issueLink).ConfigureAwait(false);
+            if (issue is null)
+            {
+                continue;
+            }
             if (preferGithub)
             {
                 var summary = ExtractSection(item.Body, "Summary");
@@ -322,7 +345,7 @@ public class Program
             }
         }
 
-        return new ItemSyncData(imported, issuesCreated, issuesUpdated, itemsUpdated, branchesCreated, dryRun);
+        return new ItemSyncData(imported, issuesCreated, issuesUpdated, itemsUpdated, branchesCreated, warnings, dryRun);
     }
 
     static void PrintRelatedLinks(string label, IEnumerable<string> links)
@@ -2516,6 +2539,58 @@ public class Program
         });
         itemCommand.Subcommands.Add(itemRenameCommand);
 
+        var itemNormalizeCommand = new Command("normalize", "Normalize work item front matter lists.");
+        var normalizeIncludeDoneOption = new Option<bool>("--include-done")
+        {
+            Description = "Include work/done items."
+        };
+        var normalizeDryRunOption = new Option<bool>("--dry-run")
+        {
+            Description = "Report changes without writing files."
+        };
+        itemNormalizeCommand.Options.Add(normalizeIncludeDoneOption);
+        itemNormalizeCommand.Options.Add(normalizeDryRunOption);
+        itemNormalizeCommand.SetAction(parseResult =>
+        {
+            try
+            {
+                var repo = parseResult.GetValue(repoOption);
+                var format = parseResult.GetValue(formatOption) ?? "table";
+                var includeDone = parseResult.GetValue(normalizeIncludeDoneOption);
+                var dryRun = parseResult.GetValue(normalizeDryRunOption);
+                var repoRoot = ResolveRepo(repo);
+                var resolvedFormat = ResolveFormat(format);
+                var config = WorkbenchConfig.Load(repoRoot, out var configError);
+                if (configError is not null)
+                {
+                    Console.WriteLine($"Config error: {configError}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var updated = WorkItemService.NormalizeItems(repoRoot, config, includeDone, dryRun);
+                if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var payload = new ItemNormalizeOutput(
+                        true,
+                        new ItemNormalizeData(updated, dryRun));
+                    WriteJson(payload, WorkbenchJsonContext.Default.ItemNormalizeOutput);
+                }
+                else
+                {
+                    var mode = dryRun ? "would update" : "updated";
+                    Console.WriteLine($"{updated} work item(s) {mode}.");
+                }
+                SetExitCode(0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                SetExitCode(2);
+            }
+        });
+        itemCommand.Subcommands.Add(itemNormalizeCommand);
+
         var itemDeleteCommand = new Command("delete", "Delete a work item file and update doc backlinks.");
         var deleteIdArg = new Argument<string>("id")
         {
@@ -4068,8 +4143,25 @@ public class Program
         {
             Description = "Show detailed validation output."
         };
+        var linkIncludeOption = new Option<string[]>("--link-include")
+        {
+            Description = "Repo-relative path prefixes to include in link validation.",
+            AllowMultipleArgumentsPerToken = true
+        };
+        var linkExcludeOption = new Option<string[]>("--link-exclude")
+        {
+            Description = "Repo-relative path prefixes to exclude from link validation.",
+            AllowMultipleArgumentsPerToken = true
+        };
+        var skipDocSchemaOption = new Option<bool>("--skip-doc-schema")
+        {
+            Description = "Skip doc front matter schema validation."
+        };
         validateCommand.Options.Add(strictOption);
         validateCommand.Options.Add(verboseOption);
+        validateCommand.Options.Add(linkIncludeOption);
+        validateCommand.Options.Add(linkExcludeOption);
+        validateCommand.Options.Add(skipDocSchemaOption);
         validateCommand.Aliases.Add("verify");
         validateCommand.SetAction(parseResult =>
         {
@@ -4079,6 +4171,9 @@ public class Program
                 var format = parseResult.GetValue(formatOption) ?? "table";
                 var strict = parseResult.GetValue(strictOption);
                 var verbose = parseResult.GetValue(verboseOption);
+                var linkInclude = parseResult.GetValue(linkIncludeOption) ?? Array.Empty<string>();
+                var linkExclude = parseResult.GetValue(linkExcludeOption) ?? Array.Empty<string>();
+                var skipDocSchema = parseResult.GetValue(skipDocSchemaOption);
                 var repoRoot = ResolveRepo(repo);
                 var resolvedFormat = ResolveFormat(format);
                 var config = WorkbenchConfig.Load(repoRoot, out var configError);
@@ -4088,7 +4183,8 @@ public class Program
                     SetExitCode(2);
                     return;
                 }
-                var result = ValidationService.ValidateRepo(repoRoot, config);
+                var options = new ValidationOptions(linkInclude, linkExclude, skipDocSchema);
+                var result = ValidationService.ValidateRepo(repoRoot, config, options);
                 int exit;
                 if (result.Errors.Count > 0)
                 {

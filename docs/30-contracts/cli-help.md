@@ -100,7 +100,7 @@ Commands:
 - Status values: `draft`, `ready`, `in-progress`, `blocked`, `done`, `dropped`.
 
 - `workbench item sync [--id <ID...>] [--issue <id|url...>] [--import-issues] [--prefer <local|github>] [--dry-run]`
-  - Sync work items with GitHub issues and branches (two-way, no deletes). Branches are only created when listed in `related.branches`. Defaults to pushing local content to GitHub unless `--prefer github` is set for ID-scoped sync. Use `--import-issues` to scan GitHub for unlinked issues (slower).
+  - Sync work items with GitHub issues and branches (two-way, no deletes). Branches are only created when listed in `related.branches`. Defaults to pushing local content to GitHub unless `--prefer github` is set for ID-scoped sync. Use `--import-issues` to scan GitHub for unlinked issues (slower). Missing issues are reported as warnings and sync continues.
   - Example: `workbench item sync --dry-run`
 
 - `workbench item list [--type <...>] [--status <...>] [--include-done]`
@@ -120,6 +120,9 @@ Commands:
 - `workbench item close <ID> [--move]`
   - Set status to `done`; optionally move the file to `work/done`.
   - Example: `workbench item close TASK-0042 --move`
+- `workbench item normalize [--include-done] [--dry-run]`
+  - Normalize work item front matter lists (e.g., tags, related lists).
+  - Example: `workbench item normalize --include-done`
 - `workbench item delete <ID> [--keep-links]`
   - Delete a work item file and remove doc backlinks (unless `--keep-links`).
   - Example: `workbench item delete TASK-0042`
@@ -179,9 +182,9 @@ Commands:
   - Create a GitHub PR via the configured provider and backlink the PR URL.
   - Example: `workbench github pr create TASK-0042 --draft --fill`
 
-- `workbench validate [--strict]`
-  - Validate work items, links, and schemas. `--strict` treats warnings as errors.
-  - Example: `workbench validate --strict`
+- `workbench validate [--strict] [--link-include <path...>] [--link-exclude <path...>] [--skip-doc-schema]`
+  - Validate work items, links, and schemas. `--strict` treats warnings as errors. Use `--link-include/--link-exclude` to scope link checks, and `--skip-doc-schema` if doc schema is not available.
+  - Example: `workbench validate --strict --link-exclude docs/tabler --skip-doc-schema`
 
 - `workbench verify [--strict]`
   - Alias for `workbench validate`.
