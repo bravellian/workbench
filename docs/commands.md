@@ -62,7 +62,7 @@ WorkItem:
     "branches": []
   },
   "slug": "add-promotion-workflow",
-  "path": "work/items/TASK-0042-add-promotion-workflow.md"
+  "path": "docs/70-work/items/TASK-0042-add-promotion-workflow.md"
 }
 ```
 
@@ -71,7 +71,7 @@ ValidationMessage:
 {
   "code": "WB040",
   "message": "Work item ID does not match file name prefix",
-  "path": "work/items/TASK-0001-bad-name.md",
+  "path": "docs/70-work/items/TASK-0001-bad-name.md",
   "details": { "expectedPrefix": "TASK-0001" }
 }
 ```
@@ -93,7 +93,7 @@ Data:
     { "name": "git", "status": "ok", "details": { "version": "2.43.0" } },
     { "name": "repo", "status": "ok" },
     { "name": "config", "status": "warn", "details": { "path": ".workbench/config.json" } },
-    { "name": "paths", "status": "warn", "details": { "missing": ["work/items"] } },
+    { "name": "paths", "status": "warn", "details": { "missing": ["docs/70-work/items"] } },
     { "name": "github", "status": "warn", "details": { "reason": "missing token" } }
   ]
 }
@@ -107,7 +107,7 @@ Notes:
 Data:
 ```json
 {
-  "created": ["docs/README.md", "work/WORKBOARD.md"],
+  "created": ["docs/README.md", "docs/70-work/README.md"],
   "skipped": ["docs/10-product/README.md"],
   "configPath": ".workbench/config.json"
 }
@@ -251,7 +251,7 @@ Data:
       "type": "task",
       "status": "ready",
       "title": "Add scaffold command",
-      "path": "work/items/TASK-0001-add-scaffold-command.md"
+      "path": "docs/70-work/items/TASK-0001-add-scaffold-command.md"
     }
   ],
   "counts": { "total": 1, "byStatus": { "ready": 1 } }
@@ -311,7 +311,7 @@ Data:
 Data:
 ```json
 {
-  "path": "work/WORKBOARD.md",
+  "path": "docs/70-work/README.md",
   "counts": { "draft": 1, "ready": 2, "in-progress": 1, "blocked": 0 }
 }
 ```

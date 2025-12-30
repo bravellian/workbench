@@ -103,9 +103,8 @@ Workbench supports configurable paths, but defaults to:
   50-runbooks/
   60-tracking/
 
-/work/
+/docs/70-work/
   README.md
-  WORKBOARD.md
   /items/
   /done/                (optional)
   /templates/
@@ -118,8 +117,9 @@ Workbench supports configurable paths, but defaults to:
 
 Scaffolding rules:
 - Never overwrite existing files unless --force.
-- Templates are copied into /work/templates.
+- Templates are copied into /docs/70-work/templates.
 - Minimal README files explain "what goes here".
+- The workboard lives inside /docs/70-work/README.md.
 
 ---
 
@@ -127,8 +127,8 @@ Scaffolding rules:
 
 ### File location and naming
 Default:
-- Active items: /work/items/<ID>-<slug>.md
-- Done items: /work/done/<ID>-<slug>.md (optional)
+- Active items: /docs/70-work/items/<ID>-<slug>.md
+- Done items: /docs/70-work/done/<ID>-<slug>.md (optional)
 
 <slug> is derived from title:
 - lowercase
@@ -137,14 +137,14 @@ Default:
 - collapse multiple -
 
 ### ID allocation
-Workbench determines the next ID by scanning existing items in `work/items` and `work/done`.
+Workbench determines the next ID by scanning existing items in `docs/70-work/items` and `docs/70-work/done`.
 Allocation rules:
 - IDs are per type (bug/task/spike) and monotonically increase.
 - Width is padded to the configured `ids.width` (default: 4).
 - Gaps are allowed; the next ID is `max(existing)+1`.
 
 ### Template tokens
-Templates in `work/templates` are copied verbatim, then tokens are replaced:
+Templates in `docs/70-work/templates` are copied verbatim, then tokens are replaced:
 - `<title>` becomes the title passed to `workbench item new`
 - `0000-00-00` becomes the current date (UTC, YYYY-MM-DD)
 - `BUG-0000` / `TASK-0000` / `SPIKE-0000` replaced with the allocated ID
@@ -238,11 +238,11 @@ Workbench works without config (defaults applied), but writes config on scaffold
 {
   "paths": {
     "docsRoot": "docs",
-    "workRoot": "work",
-    "itemsDir": "work/items",
-    "doneDir": "work/done",
-    "templatesDir": "work/templates",
-    "workboardFile": "work/WORKBOARD.md"
+    "workRoot": "docs/70-work",
+    "itemsDir": "docs/70-work/items",
+    "doneDir": "docs/70-work/done",
+    "templatesDir": "docs/70-work/templates",
+    "workboardFile": "docs/70-work/README.md"
   },
   "ids": {
     "width": 4,
@@ -325,10 +325,10 @@ Writes or updates a credentials.env entry (defaults to /.workbench/credentials.e
 Removes a credentials.env entry.
 
 #### workbench item new --type <bug|task|spike> --title "<...>" [--status <...>] [--priority <...>] [--owner <...>]
-Creates a new work item file in /work/items using templates and ID allocation rules.
+Creates a new work item file in /docs/70-work/items using templates and ID allocation rules.
 
 #### workbench item generate --prompt "<...>" [--type <bug|task|spike>] [--status <...>] [--priority <...>] [--owner <...>]
-Generates a work item draft with AI from freeform text and creates it in /work/items.
+Generates a work item draft with AI from freeform text and creates it in /docs/70-work/items.
 
 #### workbench item list [--type ...] [--status ...] [--include-done]
 Lists items from active and optionally includes done items.
@@ -364,7 +364,7 @@ Syncs doc/work item backlinks and front matter.
 Summarizes markdown diffs with AI and appends change notes.
 
 #### workbench board regen
-Regenerates /work/WORKBOARD.md with sections based on status:
+Regenerates the workboard section in /docs/70-work/README.md with sections based on status:
 - Now: in-progress
 - Next: ready
 - Blocked
@@ -463,7 +463,7 @@ Backlink rules for related.files:
 - A backlink is either a plain text mention of the ID or a markdown link to the work item file.
 Examples:
 - Plain text: `TASK-0042`
-- Markdown link: `[TASK-0001](/work/items/TASK-0001-improve-cli-onboarding-help-init-walkthrough-and-run-wizard.md)`
+- Markdown link: `[TASK-0001](/docs/70-work/items/TASK-0001-improve-cli-onboarding-help-init-walkthrough-and-run-wizard.md)`
 
 Doc cross-link rules:
 - ADRs in `/docs/40-decisions` must include a "Related specs" section with at least one link to a spec in `/docs/10-product` or `/docs/20-architecture`.

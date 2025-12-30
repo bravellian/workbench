@@ -103,7 +103,7 @@ command that walks users through common actions.
 
 ## Related work items
 
-- [TASK-0001](/work/items/TASK-0001-improve-cli-onboarding-help-init-walkthrough-and-run-wizard.md)
+- [TASK-0001](/docs/70-work/items/TASK-0001-improve-cli-onboarding-help-init-walkthrough-and-run-wizard.md)
 
 ## Related ADRs
 

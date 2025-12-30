@@ -31,7 +31,7 @@ It is intentionally capability-first rather than a full command catalog.
 - Sync work items with GitHub issues/branches (two-way, no deletes) -> `workbench item sync` (or `workbench sync --items`)
 - List or inspect work items -> `workbench item list`, `workbench item show`
 - Update status and append a note -> `workbench item status`
-- Close an item and optionally move it to `work/done` -> `workbench item close`
+- Close an item and optionally move it to `docs/70-work/done` -> `workbench item close`
 - Delete work items and remove doc backlinks -> `workbench item delete`
 - Move or rename items and update inbound links -> `workbench item move`, `workbench item rename`
 - Normalize work item front matter lists -> `workbench item normalize`

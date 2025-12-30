@@ -18,7 +18,7 @@ public class ScaffoldPromoteTests
         Assert.IsFalse(string.IsNullOrWhiteSpace(configPath));
         Assert.IsTrue(File.Exists(configPath!));
         Assert.IsTrue(File.Exists(Path.Combine(repo.Path, "work", "templates", "work-item.task.md")));
-        Assert.IsTrue(File.Exists(Path.Combine(repo.Path, "work", "WORKBOARD.md")));
+        Assert.IsTrue(File.Exists(Path.Combine(repo.Path, "docs", "70-work", "README.md")));
 
         CommitAll(repo.Path, "Add scaffold");
 

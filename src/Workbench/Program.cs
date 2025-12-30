@@ -501,6 +501,33 @@ public class Program
         return normalized.StartsWith("./", StringComparison.Ordinal) ? normalized[2..] : normalized;
     }
 
+    static void TryMigrateLegacyWorkLayout(string repoRoot, WorkbenchConfig config, bool dryRun)
+    {
+        var legacyRoot = Path.Combine(repoRoot, "work");
+        var targetRoot = Path.Combine(repoRoot, config.Paths.WorkRoot);
+
+        if (!Directory.Exists(legacyRoot))
+        {
+            return;
+        }
+
+        if (Directory.Exists(targetRoot))
+        {
+            Console.WriteLine($"Legacy work layout found at {legacyRoot} but {targetRoot} already exists; manual merge required.");
+            return;
+        }
+
+        if (dryRun)
+        {
+            Console.WriteLine($"Dry run: would move legacy work layout from {legacyRoot} to {targetRoot}.");
+            return;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(targetRoot) ?? repoRoot);
+        Directory.Move(legacyRoot, targetRoot);
+        Console.WriteLine($"Moved legacy work layout from {legacyRoot} to {targetRoot}.");
+    }
+
     static void HandleDocCreate(
         string? repo,
         string format,
@@ -929,7 +956,7 @@ public class Program
     {
         ("Create work item", "Guided creation of task, bug, or spike work items."),
         ("Create document", "Create a spec, ADR, runbook, guide, or general doc."),
-        ("Regenerate workboard", "Refresh work/WORKBOARD.md from current items."),
+        ("Regenerate workboard", "Refresh docs/70-work/README.md from current items."),
         ("Exit", "Leave the wizard.")
     };
 
@@ -1036,7 +1063,7 @@ public class Program
                 var result = WorkboardService.Regenerate(repoRoot, config);
                 Console.WriteLine($"Workboard regenerated: {result.Path}");
                 summary.Add("Regenerated workboard.");
-                Console.WriteLine("Next steps: review `work/WORKBOARD.md` for updated status.");
+                Console.WriteLine("Next steps: review `docs/70-work/README.md` for updated status.");
             }
         }
         catch (Exception ex)
@@ -1848,7 +1875,7 @@ public class Program
             };
         }
 
-        var itemNewCommand = new Command("new", "Create a new work item in work/items using templates and ID allocation.");
+        var itemNewCommand = new Command("new", "Create a new work item in docs/70-work/items using templates and ID allocation.");
         var itemTitleOption = CreateTitleOption();
         var itemStatusOption = CreateStatusOption();
         var itemPriorityOption = CreatePriorityOption();
@@ -2201,7 +2228,7 @@ public class Program
         listStatusOption.CompletionSources.Add("draft", "ready", "in-progress", "blocked", "done", "dropped");
         var includeDoneOption = new Option<bool>("--include-done")
         {
-            Description = "Include items from work/done."
+            Description = "Include items from docs/70-work/done."
         };
         itemListCommand.Options.Add(listTypeOption);
         itemListCommand.Options.Add(listStatusOption);
@@ -2373,14 +2400,14 @@ public class Program
         });
         itemCommand.Subcommands.Add(itemStatusCommand);
 
-        var itemCloseCommand = new Command("close", "Set status to done; optionally move to work/done.");
+        var itemCloseCommand = new Command("close", "Set status to done; optionally move to docs/70-work/done.");
         var closeIdArg = new Argument<string>("id")
         {
             Description = "Work item ID."
         };
         var moveOption = new Option<bool>("--move")
         {
-            Description = "Move to work/done."
+            Description = "Move to docs/70-work/done."
         };
         itemCloseCommand.Arguments.Add(closeIdArg);
         itemCloseCommand.Options.Add(moveOption);
@@ -2542,7 +2569,7 @@ public class Program
         var itemNormalizeCommand = new Command("normalize", "Normalize work item front matter lists.");
         var normalizeItemsIncludeDoneOption = new Option<bool>("--include-done")
         {
-            Description = "Include work/done items."
+            Description = "Include docs/70-work/done items."
         };
         var normalizeAllDryRunOption = new Option<bool>("--dry-run")
         {
@@ -2568,6 +2595,7 @@ public class Program
                     return;
                 }
 
+                TryMigrateLegacyWorkLayout(repoRoot, config, dryRun);
                 var updated = WorkItemService.NormalizeItems(repoRoot, config, includeDone, dryRun);
                 if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
                 {
@@ -3001,6 +3029,7 @@ public class Program
                     return;
                 }
 
+                TryMigrateLegacyWorkLayout(repoRoot, config, dryRun);
                 var itemsUpdated = normalizeItems
                     ? WorkItemService.NormalizeItems(repoRoot, config, includeDone, dryRun)
                     : 0;
@@ -3038,7 +3067,7 @@ public class Program
         root.Subcommands.Add(normalizeCommand);
 
         var boardCommand = new Command("board", "Group: workboard commands.");
-        var boardRegenCommand = new Command("regen", "Regenerate work/WORKBOARD.md.");
+        var boardRegenCommand = new Command("regen", "Regenerate docs/70-work/README.md.");
         boardRegenCommand.SetAction(parseResult =>
         {
             try

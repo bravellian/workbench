@@ -1,11 +1,11 @@
 {
   "paths": {
     "docsRoot": "docs",
-    "workRoot": "work",
-    "itemsDir": "work/items",
-    "doneDir": "work/done",
-    "templatesDir": "work/templates",
-    "workboardFile": "work/WORKBOARD.md"
+    "workRoot": "docs/70-work",
+    "itemsDir": "docs/70-work/items",
+    "doneDir": "docs/70-work/done",
+    "templatesDir": "docs/70-work/templates",
+    "workboardFile": "docs/70-work/README.md"
   },
   "ids": {
     "width": 4,

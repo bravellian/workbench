@@ -88,10 +88,10 @@ Commands:
   - Example: `workbench config credentials unset --key WORKBENCH_AI_OPENAI_KEY`
 
 - `workbench item new --type <bug|task|spike> --title "<...>" [--status <...>] [--priority <...>] [--owner <...>]`
-  - Create a new work item in `work/items` using templates and ID allocation.
+  - Create a new work item in `docs/70-work/items` using templates and ID allocation.
   - Example: `workbench item new --type task --title "Add promote command"`
 - `workbench item generate --prompt "<...>" [--type <bug|task|spike>] [--status <...>] [--priority <...>] [--owner <...>]`
-  - Generate a work item with AI from freeform text and create it in `work/items`.
+  - Generate a work item with AI from freeform text and create it in `docs/70-work/items`.
   - Example: `workbench item generate --prompt "Add guardrails to prevent empty summaries"`
 - Status values: `draft`, `ready`, `in-progress`, `blocked`, `done`, `dropped`.
 - `workbench item import --issue <id|url...> [--type <bug|task|spike>] [--status <...>] [--priority <...>] [--owner <...>]`
@@ -104,7 +104,7 @@ Commands:
   - Example: `workbench item sync --dry-run`
 
 - `workbench item list [--type <...>] [--status <...>] [--include-done]`
-  - List work items. Use `--include-done` to include `work/done`.
+  - List work items. Use `--include-done` to include `docs/70-work/done`.
   - Example: `workbench item list --status ready`
 - Status values: `draft`, `ready`, `in-progress`, `blocked`, `done`, `dropped`.
 
@@ -118,7 +118,7 @@ Commands:
 - Status values: `draft`, `ready`, `in-progress`, `blocked`, `done`, `dropped`.
 
 - `workbench item close <ID> [--move]`
-  - Set status to `done`; optionally move the file to `work/done`.
+  - Set status to `done`; optionally move the file to `docs/70-work/done`.
   - Example: `workbench item close TASK-0042 --move`
 - `workbench item normalize [--include-done] [--dry-run]`
   - Normalize work item front matter lists (e.g., tags, related lists).
@@ -129,7 +129,7 @@ Commands:
 
 - `workbench item move <ID> --to <path>`
   - Move a work item file and update inbound links to the old path where possible.
-  - Example: `workbench item move TASK-0042 --to work/done/TASK-0042-add-promotion-workflow.md`
+  - Example: `workbench item move TASK-0042 --to docs/70-work/done/TASK-0042-add-promotion-workflow.md`
 
 - `workbench item rename <ID> --title "<...>"`
   - Regenerate slug from title, rename the file, and update inbound links.
@@ -144,7 +144,7 @@ Commands:
   - Example: `workbench item unlink TASK-0042 --adr /docs/40-decisions/2025-01-01-audit-logs.md`
 
 - `workbench board regen`
-  - Regenerate `work/WORKBOARD.md`.
+  - Regenerate the workboard section in `docs/70-work/README.md`.
   - Example: `workbench board regen`
 
 - `workbench doc new --type <spec|adr|doc|runbook|guide> --title "<...>" [--path <...>] [--work-item <ID...>] [--code-ref <ref...>] [--force]`

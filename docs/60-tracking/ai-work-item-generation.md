@@ -19,7 +19,7 @@ and acceptance criteria, then creates the work item file from the templates.
 
 - Requires `WORKBENCH_AI_PROVIDER` and API credentials (same as doc summaries).
 - Uses a dedicated model override for work item generation when provided.
-- Creates a standard work item file under `work/items` using the selected type.
+- Creates a standard work item file under `docs/70-work/items` using the selected type.
 
 ## Configuration
 

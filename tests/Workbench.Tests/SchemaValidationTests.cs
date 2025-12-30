@@ -24,7 +24,7 @@ public class SchemaValidationTests
             """);
 
         var data = new Dictionary<string, object?>(StringComparer.InvariantCulture) { ["type"] = "task" };
-        var errors = SchemaValidationService.ValidateFrontMatter(repoRoot, "work/items/TASK-0001-test.md", data);
+        var errors = SchemaValidationService.ValidateFrontMatter(repoRoot, "docs/70-work/items/TASK-0001-test.md", data);
         Assert.IsNotEmpty(errors);
     }
 

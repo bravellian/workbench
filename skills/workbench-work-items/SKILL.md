@@ -39,7 +39,7 @@ workbench item link TASK-0001 --spec /docs/10-product/spec.md --adr /docs/40-dec
 
 ## Output
 
-- Work items in `work/items` (active) and `work/done` (closed).
+- Work items in `docs/70-work/items` (active) and `docs/70-work/done` (closed).
 - Linked docs and external artifacts tracked in front matter.
 
 ## Guardrails

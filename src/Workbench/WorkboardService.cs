@@ -5,6 +5,8 @@ namespace Workbench;
 public static class WorkboardService
 {
     public sealed record WorkboardResult(string Path, IDictionary<string, int> Counts);
+    private const string WorkboardStart = "<!-- workbench:workboard:start -->";
+    private const string WorkboardEnd = "<!-- workbench:workboard:end -->";
 
     public static WorkboardResult Regenerate(string repoRoot, WorkbenchConfig config)
     {
@@ -36,8 +38,6 @@ public static class WorkboardService
 
         var lines = new List<string>
         {
-            "# Workboard",
-            string.Empty,
             "## Now (in-progress)",
             string.Empty
         };
@@ -54,12 +54,49 @@ public static class WorkboardService
         lines.AddRange(FormatCollapsibleSection("Draft (backlog)", sections["draft"], repoRoot, workboardDir, defaultRepo));
         lines.Add(string.Empty);
 
-        var content = string.Join("\n", lines);
+        var content = string.Join("\n", lines).TrimEnd();
         Directory.CreateDirectory(workboardDir);
-        File.WriteAllText(workboardPath, content);
+        if (File.Exists(workboardPath))
+        {
+            var existing = File.ReadAllText(workboardPath);
+            if (TryReplaceSection(existing, WorkboardStart, WorkboardEnd, content, out var updated))
+            {
+                File.WriteAllText(workboardPath, updated);
+            }
+            else
+            {
+                File.WriteAllText(workboardPath, content + "\n");
+            }
+        }
+        else
+        {
+            File.WriteAllText(workboardPath, content + "\n");
+        }
 
         var counts = sections.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Count, StringComparer.OrdinalIgnoreCase);
         return new WorkboardResult(workboardPath, counts);
+    }
+
+    private static bool TryReplaceSection(
+        string content,
+        string startMarker,
+        string endMarker,
+        string replacement,
+        out string updated)
+    {
+        updated = content;
+        var startIndex = content.IndexOf(startMarker, StringComparison.Ordinal);
+        var endIndex = content.IndexOf(endMarker, StringComparison.Ordinal);
+        if (startIndex < 0 || endIndex < 0 || endIndex <= startIndex)
+        {
+            return false;
+        }
+
+        var before = content[..(startIndex + startMarker.Length)];
+        var after = content[endIndex..];
+        var normalized = replacement.TrimEnd();
+        updated = $"{before}\n\n{normalized}\n{after}";
+        return true;
     }
 
     private static IEnumerable<string> FormatSection(
