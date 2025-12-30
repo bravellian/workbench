@@ -2995,7 +2995,7 @@ public class Program
         };
         var normalizeAllDocsOption = new Option<bool>("--all-docs")
         {
-            Description = "Add Workbench front matter to all docs."
+            Description = "Add Workbench front matter to all docs (default)."
         };
         normalizeCommand.Options.Add(normalizeItemsOption);
         normalizeCommand.Options.Add(normalizeDocsOption);
@@ -3010,6 +3010,10 @@ public class Program
                 var format = parseResult.GetValue(formatOption) ?? "table";
                 var includeDone = parseResult.GetValue(normalizeItemsIncludeDoneOption);
                 var includeAllDocs = parseResult.GetValue(normalizeAllDocsOption);
+                if (parseResult.GetResult(normalizeAllDocsOption) is null)
+                {
+                    includeAllDocs = true;
+                }
                 var dryRun = parseResult.GetValue(normalizeAllDryRunOption);
                 var normalizeItems = parseResult.GetValue(normalizeItemsOption);
                 var normalizeDocs = parseResult.GetValue(normalizeDocsOption);
@@ -3546,7 +3550,7 @@ public class Program
         var docSyncCommand = new Command("sync", "Sync doc/work item backlinks.");
         var docSyncAllOption = new Option<bool>("--all")
         {
-            Description = "Add Workbench front matter to all docs."
+            Description = "Add Workbench front matter to all docs (default)."
         };
         var docSyncIssuesOption = new Option<bool>("--issues")
         {
@@ -3571,6 +3575,10 @@ public class Program
                 var repo = parseResult.GetValue(repoOption);
                 var format = parseResult.GetValue(formatOption) ?? "table";
                 var all = parseResult.GetValue(docSyncAllOption);
+                if (parseResult.GetResult(docSyncAllOption) is null)
+                {
+                    all = true;
+                }
                 var syncIssues = parseResult.GetValue(docSyncIssuesOption);
                 var includeDone = parseResult.GetValue(docSyncIncludeDoneOption);
                 var dryRun = parseResult.GetValue(docSyncDryRunOption);

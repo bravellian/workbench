@@ -63,7 +63,7 @@ public static class DocSummaryService
             }
 
             var diffHash = ComputeHash(diff);
-            if (!TryAppendSummary(fullPath, summary, diffHash, dryRun, out var added, out var result))
+            if (!TryAppendSummary(repoRoot, fullPath, summary, diffHash, dryRun, out var added, out var result))
             {
                 if (!string.IsNullOrWhiteSpace(result))
                 {
@@ -97,6 +97,7 @@ public static class DocSummaryService
     }
 
     private static bool TryAppendSummary(
+        string repoRoot,
         string path,
         string summary,
         string diffHash,
@@ -114,6 +115,7 @@ public static class DocSummaryService
         }
 
         var workbench = EnsureWorkbench(frontMatter!, out var changed);
+        changed |= EnsurePathMetadata(workbench, repoRoot, path);
         var notes = EnsureStringList(workbench, "changeNotes", out var notesChanged);
         var shortHash = diffHash[..8];
         if (notes.Any(note => string.Equals(ExtractHash(note), shortHash, StringComparison.OrdinalIgnoreCase)))
@@ -185,13 +187,52 @@ public static class DocSummaryService
         return workbench;
     }
 
+    private static bool EnsurePathMetadata(Dictionary<string, object?> workbench, string repoRoot, string docPath)
+    {
+        var changed = false;
+        var relativePath = Path.GetRelativePath(repoRoot, docPath)
+            .Replace(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var currentPath = string.Concat(Path.AltDirectorySeparatorChar, relativePath);
+
+        var existingPath = workbench.TryGetValue("path", out var value) ? value?.ToString() : null;
+        if (!string.IsNullOrWhiteSpace(existingPath) &&
+            !string.Equals(existingPath, currentPath, StringComparison.OrdinalIgnoreCase))
+        {
+            var history = EnsureStringList(workbench, "pathHistory", out var historyChanged);
+            if (!history.Any(entry => entry.Equals(existingPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                history.Add(existingPath);
+                changed = true;
+            }
+            if (historyChanged)
+            {
+                changed = true;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(existingPath) ||
+            !string.Equals(existingPath, currentPath, StringComparison.OrdinalIgnoreCase))
+        {
+            workbench["path"] = currentPath;
+            changed = true;
+        }
+
+        _ = EnsureStringList(workbench, "pathHistory", out var listChanged);
+        if (listChanged)
+        {
+            changed = true;
+        }
+
+        return changed;
+    }
+
     private static List<string> EnsureStringList(Dictionary<string, object?> data, string key, out bool changed)
     {
         changed = false;
         if (!data.TryGetValue(key, out var value) || value is null)
         {
             var list = new List<string>();
-            data[key] = list.Cast<object?>().ToList();
+            data[key] = list;
             changed = true;
             return list;
         }
@@ -201,11 +242,11 @@ public static class DocSummaryService
                 .Select(item => item?.ToString() ?? string.Empty)
                 .Where(item => item.Length > 0)
                 .ToList();
-            data[key] = list.Cast<object?>().ToList();
+            data[key] = list;
             return list;
         }
         var reset = new List<string>();
-        data[key] = reset.Cast<object?>().ToList();
+        data[key] = reset;
         changed = true;
         return reset;
     }

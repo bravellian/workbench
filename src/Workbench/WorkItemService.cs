@@ -604,6 +604,70 @@ public static class WorkItemService
         return false;
     }
 
+    public static bool ReplaceRelatedLinks(string path, IDictionary<string, string> replacements, bool apply = true)
+    {
+        if (replacements.Count == 0)
+        {
+            return false;
+        }
+
+        var content = File.ReadAllText(path);
+        if (!FrontMatter.TryParse(content, out var frontMatter, out var error))
+        {
+            throw new InvalidOperationException($"Front matter error: {error}");
+        }
+
+        var related = GetRelatedMap(frontMatter!.Data);
+        if (related is null)
+        {
+            throw new InvalidOperationException("Missing related section.");
+        }
+
+        var changed = false;
+        foreach (var key in new[] { "specs", "adrs", "files" })
+        {
+            var list = EnsureList(related, key);
+            for (var index = list.Count - 1; index >= 0; index--)
+            {
+                var entry = list[index]?.ToString();
+                if (string.IsNullOrWhiteSpace(entry))
+                {
+                    continue;
+                }
+
+                var normalizedEntry = NormalizeRelatedLink(entry);
+                if (!replacements.TryGetValue(normalizedEntry, out var replacement))
+                {
+                    continue;
+                }
+
+                var normalizedReplacement = NormalizeRelatedLink(replacement);
+                var alreadyPresent = list.Any(item =>
+                {
+                    var value = item?.ToString();
+                    return value is not null && NormalizeRelatedLink(value).Equals(normalizedReplacement, StringComparison.OrdinalIgnoreCase);
+                });
+
+                if (alreadyPresent)
+                {
+                    list.RemoveAt(index);
+                }
+                else
+                {
+                    list[index] = normalizedReplacement;
+                }
+                changed = true;
+            }
+        }
+
+        if (changed && apply)
+        {
+            File.WriteAllText(path, frontMatter.Serialize());
+        }
+
+        return changed;
+    }
+
     public static bool UpdateGithubSynced(string path, DateTime timestamp, bool apply = true)
     {
         var content = File.ReadAllText(path);

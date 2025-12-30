@@ -213,6 +213,20 @@ related:
 - ...
 ```
 
+---
+
+## Doc front matter
+
+Docs use YAML front matter aligned with `/docs/30-contracts/doc.schema.json`. Workbench keeps path metadata so moved files can be detected and links updated.
+
+### Workbench fields
+- workbench.type: spec | adr | doc | runbook | guide
+- workbench.workItems: linked work item IDs
+- workbench.codeRefs: related code references
+- workbench.path: current repo-relative path (e.g. /docs/10-product/onboarding.md)
+- workbench.pathHistory: prior repo-relative paths used to repair links after moves
+- status: active | draft | legacy (recommended for imported docs)
+
 ### Body conventions (template-driven)
 Each type has a template. At minimum:
 - Title H1
@@ -358,7 +372,7 @@ Links a spec/ADR doc to one or more work items.
 Unlinks a spec/ADR doc from one or more work items.
 
 #### workbench doc sync [--all] [--issues] [--include-done] [--dry-run]
-Syncs doc/work item backlinks and front matter.
+Syncs doc/work item backlinks and front matter. Adds front matter to all docs by default; pass `--all false` to limit to referenced docs.
 
 #### workbench doc summarize [--staged] [--path <path...>] [--dry-run] [--update-index]
 Summarizes markdown diffs with AI and appends change notes.

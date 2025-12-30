@@ -50,7 +50,9 @@ public static class DocService
             {
                 ["type"] = type,
                 ["workItems"] = workItems.Cast<object?>().ToList(),
-                ["codeRefs"] = codeRefs.Cast<object?>().ToList()
+                ["codeRefs"] = codeRefs.Cast<object?>().ToList(),
+                ["path"] = relative,
+                ["pathHistory"] = new List<string>()
             }
         };
 
@@ -74,6 +76,7 @@ public static class DocService
         var docsUpdated = 0;
         var missingDocs = new List<string>();
         var missingItems = new List<string>();
+        var docPathMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var itemsById = LoadItems(repoRoot, config);
         var referencedDocs = BuildReferencedDocSet(repoRoot, itemsById.Values);
 
@@ -99,7 +102,7 @@ public static class DocService
             var docType = GetString(workbench, "type") ?? InferDocType(docPath);
             var workItems = EnsureStringList(workbench, "workItems", out var workItemsChanged);
             _ = EnsureStringList(workbench, "codeRefs", out var codeRefsChanged);
-            var relative = "/" + Path.GetRelativePath(repoRoot, docPath).Replace('\\', '/');
+            var pathChanged = EnsureDocPathMetadata(workbench, repoRoot, docPath, out var relative, out var pathHistory);
 
             foreach (var workItemId in workItems)
             {
@@ -115,10 +118,41 @@ public static class DocService
                 }
             }
 
-            if ((createdFrontMatter || docChanged || workItemsChanged || codeRefsChanged) && !dryRun)
+            if (pathHistory.Count > 0)
+            {
+                foreach (var entry in pathHistory)
+                {
+                    if (entry.Equals(relative, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    if (!docPathMap.ContainsKey(entry))
+                    {
+                        docPathMap[entry] = relative;
+                    }
+                }
+            }
+
+            if ((createdFrontMatter || docChanged || workItemsChanged || codeRefsChanged || pathChanged) && !dryRun)
             {
                 await File.WriteAllTextAsync(docPath, frontMatter!.Serialize()).ConfigureAwait(false);
                 docsUpdated++;
+            }
+        }
+
+        if (docPathMap.Count > 0)
+        {
+            foreach (var item in itemsById.Values)
+            {
+                if (WorkItemService.ReplaceRelatedLinks(item.Path, docPathMap, apply: !dryRun))
+                {
+                    itemsUpdated++;
+                    var refreshed = WorkItemService.LoadItem(item.Path);
+                    if (refreshed is not null)
+                    {
+                        itemsById[item.Id] = refreshed;
+                    }
+                }
             }
         }
 
@@ -173,6 +207,7 @@ public static class DocService
 
         var workbench = EnsureWorkbench(frontMatter!, InferDocType(docPath), out var docChanged);
         var workItems = EnsureStringList(workbench, "workItems", out var listChanged);
+        var pathChanged = EnsureDocPathMetadata(workbench, repoRoot, docPath, out _, out _);
         var updated = false;
 
         if (add)
@@ -193,7 +228,7 @@ public static class DocService
             }
         }
 
-        if (createdFrontMatter || docChanged || listChanged)
+        if (createdFrontMatter || docChanged || listChanged || pathChanged)
         {
             if (apply)
             {
@@ -229,8 +264,9 @@ public static class DocService
             var workbench = EnsureWorkbench(frontMatter!, InferDocType(docPath), out var docChanged);
             _ = EnsureStringList(workbench, "workItems", out var workItemsChanged);
             _ = EnsureStringList(workbench, "codeRefs", out var codeRefsChanged);
+            var pathChanged = EnsureDocPathMetadata(workbench, repoRoot, docPath, out _, out _);
 
-            if ((createdFrontMatter || docChanged || workItemsChanged || codeRefsChanged) && !dryRun)
+            if ((createdFrontMatter || docChanged || workItemsChanged || codeRefsChanged || pathChanged) && !dryRun)
             {
                 File.WriteAllText(docPath, frontMatter!.Serialize());
                 updated++;
@@ -283,6 +319,7 @@ public static class DocService
 
             var workbench = EnsureWorkbench(frontMatter!, docType, out var docChanged);
             var workItems = EnsureStringList(workbench, "workItems", out var listChanged);
+            var pathChanged = EnsureDocPathMetadata(workbench, repoRoot, docPath, out _, out _);
             var currentType = GetString(workbench, "type") ?? docType;
             if (!currentType.Equals(docType, StringComparison.OrdinalIgnoreCase))
             {
@@ -296,7 +333,7 @@ public static class DocService
                 listChanged = true;
             }
 
-            if ((createdFrontMatter || docChanged || listChanged) && !dryRun)
+            if ((createdFrontMatter || docChanged || listChanged || pathChanged) && !dryRun)
             {
                 File.WriteAllText(docPath, frontMatter!.Serialize());
                 updated++;
@@ -417,6 +454,114 @@ public static class DocService
         }
 
         return workbench;
+    }
+
+    private static bool EnsureDocPathMetadata(
+        Dictionary<string, object?> workbench,
+        string repoRoot,
+        string docPath,
+        out string currentPath,
+        out List<string> pathHistory)
+    {
+        var changed = false;
+        var relativePath = Path.GetRelativePath(repoRoot, docPath)
+            .Replace(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        currentPath = string.Concat(Path.AltDirectorySeparatorChar, relativePath);
+
+        var existingPath = GetString(workbench, "path");
+        if (!string.IsNullOrWhiteSpace(existingPath))
+        {
+            var normalizedExisting = NormalizeDocPathValue(repoRoot, existingPath);
+            if (!string.Equals(existingPath, normalizedExisting, StringComparison.Ordinal))
+            {
+                workbench["path"] = normalizedExisting;
+                existingPath = normalizedExisting;
+                changed = true;
+            }
+        }
+
+        pathHistory = EnsureStringList(workbench, "pathHistory", out var historyChanged);
+        if (historyChanged)
+        {
+            changed = true;
+        }
+
+        var normalizedHistory = NormalizePathHistory(repoRoot, pathHistory, out var historyUpdated);
+        if (historyUpdated)
+        {
+            pathHistory = normalizedHistory;
+            workbench["pathHistory"] = pathHistory;
+            changed = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(existingPath) &&
+            !string.Equals(existingPath, currentPath, StringComparison.OrdinalIgnoreCase) &&
+            !pathHistory.Any(entry => entry.Equals(existingPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            pathHistory.Add(existingPath);
+            changed = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(existingPath) ||
+            !string.Equals(existingPath, currentPath, StringComparison.OrdinalIgnoreCase))
+        {
+            workbench["path"] = currentPath;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private static List<string> NormalizePathHistory(string repoRoot, List<string> history, out bool changed)
+    {
+        changed = false;
+        if (history.Count == 0)
+        {
+            return history;
+        }
+
+        var normalized = history
+            .Select(entry => NormalizeDocPathValue(repoRoot, entry))
+            .Where(entry => !string.IsNullOrWhiteSpace(entry))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!normalized.SequenceEqual(history, StringComparer.Ordinal))
+        {
+            changed = true;
+        }
+
+        return normalized;
+    }
+
+    private static string NormalizeDocPathValue(string repoRoot, string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.StartsWith("<", StringComparison.Ordinal) && trimmed.EndsWith(">", StringComparison.Ordinal))
+        {
+            trimmed = trimmed[1..^1];
+        }
+
+        if (Path.IsPathRooted(trimmed))
+        {
+            var full = Path.GetFullPath(trimmed);
+            var repoFull = Path.GetFullPath(repoRoot);
+            if (full.StartsWith(repoFull, StringComparison.OrdinalIgnoreCase))
+            {
+                trimmed = "/" + Path.GetRelativePath(repoRoot, full).Replace('\\', '/');
+            }
+            else
+            {
+                trimmed = full.Replace('\\', '/');
+            }
+        }
+        else
+        {
+            trimmed = trimmed.Replace('\\', '/');
+            trimmed = trimmed.StartsWith("/", StringComparison.Ordinal) ? trimmed : "/" + trimmed.TrimStart('/');
+        }
+
+        return trimmed;
     }
 
     private static List<string> EnsureStringList(Dictionary<string, object?> data, string key, out bool changed)

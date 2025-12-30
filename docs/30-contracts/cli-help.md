@@ -163,8 +163,8 @@ Commands:
   - Example: `workbench doc unlink --type adr --path docs/40-decisions/2025-01-01-audit-logs.md --work-item TASK-0123`
 
 - `workbench doc sync [--all] [--issues] [--include-done] [--dry-run]`
-  - Sync doc/work item backlinks. `--all` adds Workbench front matter to all docs; `--issues` syncs GitHub issue links; `--include-done` includes done/dropped items; `--dry-run` reports changes without writing.
-  - Example: `workbench doc sync --all --issues --dry-run`
+  - Sync doc/work item backlinks. Adds Workbench front matter to all docs by default; `--all false` limits to referenced docs. `--issues` syncs GitHub issue links; `--include-done` includes done/dropped items; `--dry-run` reports changes without writing.
+  - Example: `workbench doc sync --issues --dry-run`
 
 - `workbench nav sync [--issues <true|false>] [--include-done] [--workboard <true|false>] [--force] [--dry-run]`
   - Sync doc/work item backlinks, update navigation indexes, and regenerate the workboard. Defaults to syncing issue links; set `--issues false` to skip GitHub lookups. `--workboard false` skips workboard regeneration. `--force` rewrites index sections even if they are unchanged.

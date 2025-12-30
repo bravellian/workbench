@@ -12,6 +12,8 @@
         "type": { "type": "string", "enum": ["spec", "adr", "doc", "runbook", "guide"] },
         "workItems": { "type": "array", "items": { "type": "string" } },
         "codeRefs": { "type": "array", "items": { "type": "string" } },
+        "path": { "type": "string" },
+        "pathHistory": { "type": "array", "items": { "type": "string" } },
         "changeNotes": { "type": "array", "items": { "type": "string" } }
       }
     }
