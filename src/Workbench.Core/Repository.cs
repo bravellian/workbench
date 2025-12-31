@@ -1,3 +1,5 @@
+// Repository discovery helpers.
+// Invariants: repo root is detected via .git directory presence.
 namespace Workbench.Core;
 
 public static class Repository

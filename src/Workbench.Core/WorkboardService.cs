@@ -1,7 +1,14 @@
+// Workboard generation logic for docs/70-work/README.md.
+// Invariants: only sections between the workbench markers are rewritten.
 namespace Workbench.Core;
 
 public static class WorkboardService
 {
+    /// <summary>
+    /// Result payload returned when regenerating the workboard.
+    /// </summary>
+    /// <param name="Path">Path to the workboard file.</param>
+    /// <param name="Counts">Counts by status.</param>
     public sealed record WorkboardResult(string Path, IDictionary<string, int> Counts);
     private const string WorkboardStart = "<!-- workbench:workboard:start -->";
     private const string WorkboardEnd = "<!-- workbench:workboard:end -->";

@@ -1,3 +1,5 @@
+// Builds PR bodies from work items.
+// Invariants: sections are only included when present in the work item body.
 namespace Workbench.Core;
 
 public static class PullRequestBuilder

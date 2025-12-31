@@ -1,7 +1,15 @@
+// GitHub integration entrypoint that selects provider and normalizes identifiers.
+// Invariants: repository resolution requires either git remotes or explicit config.
 namespace Workbench.Core;
 
 public static class GithubService
 {
+    /// <summary>
+    /// Authentication status result for GitHub providers.
+    /// </summary>
+    /// <param name="Status">Status label (ok/warn/error).</param>
+    /// <param name="Reason">Optional reason for non-ok statuses.</param>
+    /// <param name="Version">Provider version info when available.</param>
     public sealed record AuthStatus(string Status, string? Reason, string? Version);
 
     private static readonly Dictionary<string, IGithubProvider> providers = new(StringComparer.OrdinalIgnoreCase);

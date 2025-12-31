@@ -1,3 +1,5 @@
+// Constructs front matter payloads for generated docs.
+// Invariants: timestamps use ISO-8601 UTC; path is repo-relative with forward slashes.
 namespace Workbench.Core;
 
 public static class DocFrontMatterBuilder

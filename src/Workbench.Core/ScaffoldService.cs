@@ -1,7 +1,15 @@
+// Repository scaffolding for Workbench layout.
+// Invariants: uses default config paths; never overwrites unless force is true.
 namespace Workbench.Core;
 
 public static class ScaffoldService
 {
+    /// <summary>
+    /// Result payload returned by scaffold operations.
+    /// </summary>
+    /// <param name="Created">Paths created during scaffolding.</param>
+    /// <param name="Skipped">Paths skipped because they already existed.</param>
+    /// <param name="ConfigPath">Path to the config file.</param>
     public sealed record ScaffoldResult(IList<string> Created, IList<string> Skipped, string ConfigPath);
 
     public static ScaffoldResult Scaffold(string repoRoot, bool force)

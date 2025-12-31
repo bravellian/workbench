@@ -1,30 +1,39 @@
 {
-  "paths": {
-    "docsRoot": "docs",
-    "workRoot": "docs/70-work",
-    "itemsDir": "docs/70-work/items",
-    "doneDir": "docs/70-work/done",
-    "templatesDir": "docs/70-work/templates",
-    "workboardFile": "docs/70-work/README.md"
+  "Paths": {
+    "DocsRoot": "docs",
+    "WorkRoot": "docs/70-work",
+    "ItemsDir": "docs/70-work/items",
+    "DoneDir": "docs/70-work/done",
+    "TemplatesDir": "docs/70-work/templates",
+    "WorkboardFile": "docs/70-work/README.md"
   },
-  "ids": {
-    "width": 4,
-    "prefixes": {
-      "bug": "BUG",
-      "task": "TASK",
-      "spike": "SPIKE"
+  "Ids": {
+    "Width": 4,
+    "Prefixes": {
+      "Bug": "BUG",
+      "Task": "TASK",
+      "Spike": "SPIKE"
     }
   },
-  "git": {
-    "branchPattern": "work/{id}-{slug}",
-    "commitMessagePattern": "Promote {id}: {title}",
-    "defaultBaseBranch": "main",
-    "requireCleanWorkingTree": true
+  "Git": {
+    "BranchPattern": "work/{id}-{slug}",
+    "CommitMessagePattern": "Promote {id}: {title}",
+    "DefaultBaseBranch": "main",
+    "RequireCleanWorkingTree": true
   },
-  "github": {
-    "provider": "gh",
-    "defaultDraft": true,
-    "owner": "bravellian",
-    "repository": "workbench"
+  "Github": {
+    "Provider": "gh",
+    "DefaultDraft": true,
+    "Host": "",
+    "Owner": "bravellian",
+    "Repository": "workbench"
+  },
+  "Validation": {
+    "LinkExclude": [],
+    "DocExclude": []
+  },
+  "Tui": {
+    "Theme": "dark",
+    "UseEmoji": false
   }
 }

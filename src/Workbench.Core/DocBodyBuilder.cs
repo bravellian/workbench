@@ -1,3 +1,5 @@
+// Builds default document bodies and enforces title headers.
+// Invariants: title header is always the first line in markdown output.
 namespace Workbench.Core;
 
 public static class DocBodyBuilder

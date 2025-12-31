@@ -1,11 +1,26 @@
+// Documentation creation and backlink synchronization logic.
+// Invariants: doc types are limited to allowedTypes; front matter is the single source of link truth.
 using System.Collections;
 
 namespace Workbench.Core;
 
 public static class DocService
 {
+    /// <summary>
+    /// Result payload returned by doc creation operations.
+    /// </summary>
+    /// <param name="Path">Absolute path to the created doc.</param>
+    /// <param name="Type">Document type.</param>
+    /// <param name="WorkItems">Linked work item IDs.</param>
     public sealed record DocCreateResult(string Path, string Type, IList<string> WorkItems);
 
+    /// <summary>
+    /// Result payload returned by doc/work item sync operations.
+    /// </summary>
+    /// <param name="DocsUpdated">Number of docs updated.</param>
+    /// <param name="ItemsUpdated">Number of work items updated.</param>
+    /// <param name="MissingDocs">Missing doc references.</param>
+    /// <param name="MissingItems">Missing work item references.</param>
     public sealed record DocSyncResult(
         int DocsUpdated,
         int ItemsUpdated,

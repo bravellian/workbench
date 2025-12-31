@@ -1,3 +1,5 @@
+// Work item creation, parsing, and mutation logic.
+// Invariants: front matter schema must remain consistent; ID allocation is sequential and repo-scoped.
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
@@ -7,8 +9,18 @@ public static class WorkItemService
 {
     private const int MaxSlugLength = 80;
 
+    /// <summary>
+    /// Result payload returned by work item creation operations.
+    /// </summary>
+    /// <param name="Id">Assigned work item ID.</param>
+    /// <param name="Slug">Generated slug for the title.</param>
+    /// <param name="Path">Absolute path to the created item.</param>
     public sealed record WorkItemResult(string Id, string Slug, string Path);
 
+    /// <summary>
+    /// Result payload returned when listing work items.
+    /// </summary>
+    /// <param name="Items">List of loaded work items.</param>
     public sealed record WorkItemListResult(IList<WorkItem> Items);
 
     public static WorkItemResult CreateItem(

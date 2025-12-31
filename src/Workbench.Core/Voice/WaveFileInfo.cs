@@ -1,7 +1,17 @@
+// WAV metadata reader for PCM files.
+// Invariants: only supports RIFF/WAVE PCM (format tag 1).
 using System.Text;
 
 namespace Workbench.Core.Voice;
 
+/// <summary>
+/// Parsed WAV file metadata used for splitting and transcription.
+/// </summary>
+/// <param name="SampleRateHz">Sample rate in Hz.</param>
+/// <param name="Channels">Number of channels.</param>
+/// <param name="BitsPerSample">Bit depth per sample.</param>
+/// <param name="DataLength">Length of the data chunk in bytes.</param>
+/// <param name="DataOffset">Offset of the data chunk in the file.</param>
 public sealed record WaveFileInfo(
     int SampleRateHz,
     int Channels,
@@ -45,6 +55,7 @@ public sealed record WaveFileInfo(
             var chunkSize = reader.ReadInt32();
             if (string.Equals(chunkId, "fmt ", StringComparison.Ordinal))
             {
+                // Only PCM (formatTag 1) is supported.
                 var formatTag = reader.ReadInt16();
                 if (formatTag != 1)
                 {

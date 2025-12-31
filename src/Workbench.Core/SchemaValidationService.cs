@@ -1,3 +1,5 @@
+// JSON schema validation for config and front matter.
+// Assumes schemas live under docs/30-contracts in the repo.
 using Json.Schema;
 
 namespace Workbench.Core;

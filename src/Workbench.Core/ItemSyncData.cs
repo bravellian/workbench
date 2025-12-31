@@ -1,5 +1,15 @@
 namespace Workbench.Core;
 
+/// <summary>
+/// Payload describing work item sync results.
+/// </summary>
+/// <param name="Imported">Issues imported as work items.</param>
+/// <param name="IssuesCreated">Issues created from local items.</param>
+/// <param name="IssuesUpdated">Issues updated from local items.</param>
+/// <param name="ItemsUpdated">Items updated from GitHub issues.</param>
+/// <param name="BranchesCreated">Branches created during sync.</param>
+/// <param name="Warnings">Warnings emitted during sync.</param>
+/// <param name="DryRun">True when no remote or file changes were applied.</param>
 public sealed record ItemSyncData(
     [property: JsonPropertyName("imported")] IList<ItemSyncImportEntry> Imported,
     [property: JsonPropertyName("issuesCreated")] IList<ItemSyncIssueEntry> IssuesCreated,

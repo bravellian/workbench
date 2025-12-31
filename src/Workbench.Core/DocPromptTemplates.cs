@@ -1,3 +1,5 @@
+// Prompt templates for AI-generated docs.
+// Invariants: template headings align with doc type conventions.
 namespace Workbench.Core;
 
 internal static class DocPromptTemplates

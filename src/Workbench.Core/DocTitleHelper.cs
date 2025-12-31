@@ -1,3 +1,5 @@
+// Heuristics for deriving doc titles from transcripts.
+// Invariants: always returns a non-empty title.
 namespace Workbench.Core;
 
 public static class DocTitleHelper

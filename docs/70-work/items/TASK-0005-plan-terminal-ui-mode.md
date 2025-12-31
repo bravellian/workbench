@@ -1,11 +1,11 @@
 ---
 id: TASK-0005
 type: task
-status: in-progress
+status: done
 priority: medium
 owner: platform
 created: 2025-12-30
-updated: 2025-12-30
+updated: 2025-12-31
 githubSynced: "2025-12-30T22:08:02Z"
 tags: []
 related:
@@ -18,7 +18,7 @@ related:
   issues:
     - "https://github.com/bravellian/workbench/issues/21"
   branches:
-    - "work/TASK-0005-plan-terminal-ui-mode"
+    - work/TASK-0005-plan-terminal-ui-mode
 title: Plan terminal UI mode
 ---
 

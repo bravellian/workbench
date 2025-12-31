@@ -1,5 +1,17 @@
+// Voice capture configuration loaded from environment variables.
+// Invariants: defaults are safe for short recordings and transcription limits.
 namespace Workbench.Core.Voice;
 
+/// <summary>
+/// Voice capture and transcription configuration.
+/// </summary>
+/// <param name="Format">Audio format for recording.</param>
+/// <param name="MaxDuration">Maximum recording duration.</param>
+/// <param name="ChunkDuration">Optional chunk duration for splitting recordings.</param>
+/// <param name="MaxUploadBytes">Maximum upload size for transcription.</param>
+/// <param name="TranscriptionModel">Transcription model identifier.</param>
+/// <param name="TranscriptionLanguage">Optional language hint for transcription.</param>
+/// <param name="TranscriptExcerptMaxChars">Max characters to store as transcript excerpt.</param>
 public sealed record VoiceConfig(
     AudioFormat Format,
     TimeSpan MaxDuration,
@@ -9,6 +21,9 @@ public sealed record VoiceConfig(
     string? TranscriptionLanguage,
     int TranscriptExcerptMaxChars)
 {
+    /// <summary>
+    /// Loads voice configuration from environment variables with defaults.
+    /// </summary>
     public static VoiceConfig Load()
     {
         var sampleRate = 16000;

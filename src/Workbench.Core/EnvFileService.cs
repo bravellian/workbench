@@ -1,3 +1,5 @@
+// Env file mutation helpers for credentials and local configuration.
+// Invariants: preserves comments/blank lines and only touches targeted keys.
 namespace Workbench.Core;
 
 public static class EnvFileService

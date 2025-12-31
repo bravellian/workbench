@@ -1,3 +1,5 @@
+// Repository validation orchestration for work items, docs, and links.
+// Invariants: validation is read-only; counts reflect items present at scan time.
 using System.Collections;
 using System.Text.RegularExpressions;
 

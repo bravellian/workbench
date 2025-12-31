@@ -1,3 +1,5 @@
+// Config mutation and persistence helpers.
+// Invariants: path segments must exist in the schema; writes use the JSON context for consistency.
 namespace Workbench.Core;
 
 public static class ConfigService

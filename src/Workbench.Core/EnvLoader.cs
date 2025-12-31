@@ -1,3 +1,5 @@
+// Loads repo-scoped environment variables from .env and credentials files.
+// Invariants: each repo root is loaded once per process to avoid reapplying overrides.
 namespace Workbench.Core;
 
 public static class EnvLoader
@@ -14,6 +16,7 @@ public static class EnvLoader
         var fullRoot = Path.GetFullPath(repoRoot);
         if (!loadedRoots.Add(fullRoot))
         {
+            // Avoid reprocessing env files when multiple commands resolve the same repo.
             return;
         }
 

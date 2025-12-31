@@ -1,3 +1,5 @@
+// AI-backed doc summarization for change notes.
+// Invariants: operates on markdown files only and caps diff input size for API safety.
 using System.Collections;
 using System.Security.Cryptography;
 using System.Text;

@@ -1,3 +1,5 @@
+// Updates markdown links when files move.
+// Invariants: link normalization is repo-relative; updates are applied to markdown files only.
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -5,6 +7,10 @@ namespace Workbench.Core;
 
 public static class LinkUpdater
 {
+    /// <summary>
+    /// Result payload returned by link update operations.
+    /// </summary>
+    /// <param name="FilesUpdated">Number of files modified.</param>
     public sealed record LinkUpdateResult(int FilesUpdated);
 
     public static LinkUpdateResult UpdateLinks(string repoRoot, string oldPath, string newPath)

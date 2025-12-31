@@ -1,7 +1,14 @@
+// Entry point that routes to TUI or CLI based on first argument.
+// Keeps the top-level binary stable while allowing multiple front-ends.
 namespace Workbench;
 
 public static class Program
 {
+    /// <summary>
+    /// Main entry point for the Workbench binary.
+    /// </summary>
+    /// <param name="args">Command-line arguments passed from the host process.</param>
+    /// <returns>Exit code.</returns>
     public static Task<int> Main(string[] args)
     {
         if (args.Length > 0)

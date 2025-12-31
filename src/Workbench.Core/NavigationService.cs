@@ -1,3 +1,5 @@
+// Navigation and index synchronization for docs and work items.
+// Invariants: generated indexes are deterministic given the same inputs and ordering rules.
 using System.Collections;
 using System.Text;
 
@@ -5,6 +7,16 @@ namespace Workbench.Core;
 
 public static class NavigationService
 {
+    /// <summary>
+    /// Result payload returned by navigation sync operations.
+    /// </summary>
+    /// <param name="DocsUpdated">Number of docs updated.</param>
+    /// <param name="ItemsUpdated">Number of work items updated.</param>
+    /// <param name="IndexFilesUpdated">Number of index files updated.</param>
+    /// <param name="WorkboardUpdated">Number of workboards updated.</param>
+    /// <param name="MissingDocs">Missing docs referenced in front matter.</param>
+    /// <param name="MissingItems">Missing work items referenced in docs.</param>
+    /// <param name="Warnings">Warnings emitted during sync.</param>
     public sealed record NavigationSyncResult(
         int DocsUpdated,
         int ItemsUpdated,

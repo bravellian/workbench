@@ -1,3 +1,5 @@
+// YAML front matter parsing for markdown files.
+// Invariants: front matter is delimited by "---" on its own line at start of file.
 using System.Collections;
 
 namespace Workbench.Core;

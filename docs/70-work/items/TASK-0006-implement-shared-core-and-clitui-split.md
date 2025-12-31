@@ -1,11 +1,11 @@
 ---
 id: TASK-0006
 type: task
-status: in-progress
+status: done
 priority: medium
 owner: platform
 created: 2025-12-30
-updated: 2025-12-30
+updated: 2025-12-31
 githubSynced: "2025-12-30T22:16:24Z"
 tags: []
 related:
@@ -18,7 +18,7 @@ related:
   issues:
     - "https://github.com/bravellian/workbench/issues/22"
   branches:
-    - "work/TASK-0006-implement-shared-core-and-clitui-split"
+    - work/TASK-0006-implement-shared-core-and-clitui-split
 title: Implement shared core and CLI/TUI split
 ---
 

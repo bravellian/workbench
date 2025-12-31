@@ -1,7 +1,15 @@
+// Thin wrapper over git CLI commands.
+// Invariants: commands run in repoRoot and throw on non-zero exit for required operations.
 namespace Workbench.Core;
 
 public static class GitService
 {
+    /// <summary>
+    /// Result of invoking a git command.
+    /// </summary>
+    /// <param name="ExitCode">Process exit code.</param>
+    /// <param name="StdOut">Captured standard output.</param>
+    /// <param name="StdErr">Captured standard error.</param>
     public sealed record CommandResult(int ExitCode, string StdOut, string StdErr);
 
     public static CommandResult Run(string repoRoot, params string[] args)

@@ -1,0 +1,12 @@
+namespace Workbench.Core;
+
+/// <summary>
+/// Terminal UI preferences for Workbench.
+/// </summary>
+public sealed record TuiConfig
+{
+    /// <summary>Named theme for the TUI.</summary>
+    public string Theme { get; init; } = "powershell";
+    /// <summary>When true, use emoji labels in the work item list.</summary>
+    public bool UseEmoji { get; init; } = true;
+}

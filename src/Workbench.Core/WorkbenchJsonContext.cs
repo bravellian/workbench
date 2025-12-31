@@ -1,3 +1,5 @@
+// System.Text.Json source generation context for CLI payloads.
+// Invariants: any serialized models must be registered here to avoid reflection at runtime.
 namespace Workbench.Core;
 
 [JsonSourceGenerationOptions(
