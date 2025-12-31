@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Workbench;
+using Workbench.Core;
 
 namespace Workbench.Tests;
 

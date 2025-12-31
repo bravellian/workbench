@@ -1,0 +1,5 @@
+namespace Workbench.Core;
+
+public sealed record PromoteOutput(
+    [property: JsonPropertyName("ok")] bool Ok,
+    [property: JsonPropertyName("data")] PromoteData Data);

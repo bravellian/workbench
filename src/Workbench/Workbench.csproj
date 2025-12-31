@@ -14,13 +14,16 @@
     <PackageVersion>0.1.0</PackageVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <IsPackable>true</IsPackable>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.CommandLine" />
-    <PackageReference Include="JsonSchema.Net" />
-    <PackageReference Include="Microsoft.Agents.AI.OpenAI" />
-    <PackageReference Include="Octokit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Workbench.Cli\Workbench.Cli.csproj" />
+    <ProjectReference Include="..\Workbench.Tui\Workbench.Tui.csproj" />
   </ItemGroup>
 
   <ItemGroup>
