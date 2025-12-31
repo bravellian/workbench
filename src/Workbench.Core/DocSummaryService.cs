@@ -2,7 +2,7 @@ using System.Collections;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class DocSummaryService
 {

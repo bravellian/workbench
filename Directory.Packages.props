@@ -30,6 +30,7 @@
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="NSubstitute.Analyzers.CSharp" Version="1.0.17" />
     <PackageVersion Include="Octokit" Version="14.*" />
+    <PackageVersion Include="PortAudioSharp2" Version="1.0.6" />
     <PackageVersion Include="Roslynator.Core" Version="4.15.0" />
     <PackageVersion Include="Roslynator.CSharp" Version="4.15.0" />
     <PackageVersion Include="Roslynator.CSharp.Workspaces" Version="4.15.0" />

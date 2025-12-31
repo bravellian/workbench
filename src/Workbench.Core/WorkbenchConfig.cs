@@ -1,6 +1,4 @@
-using System.Text.Json;
-
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed record WorkbenchConfig(
     PathsConfig Paths,
@@ -28,7 +26,7 @@ public sealed record WorkbenchConfig(
         try
         {
             var json = File.ReadAllText(configPath);
-            var config = JsonSerializer.Deserialize(json, WorkbenchJsonContext.Default.WorkbenchConfig);
+            var config = JsonSerializer.Deserialize(json, Workbench.Core.WorkbenchJsonContext.Default.WorkbenchConfig);
             if (config is null)
             {
                 error = "Failed to parse config.";

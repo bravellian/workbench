@@ -1,7 +1,6 @@
 using System.Collections;
-using System.Linq;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class DocService
 {
@@ -61,6 +60,61 @@ public static class DocService
         Directory.CreateDirectory(Path.GetDirectoryName(docPath) ?? repoRoot);
         File.WriteAllText(docPath, frontMatter.Serialize());
 
+        foreach (var workItemId in workItems)
+        {
+            var itemPath = WorkItemService.GetItemPathById(repoRoot, config, workItemId);
+            WorkItemService.AddRelatedLink(itemPath, DocTypeToRelatedKey(type), relative);
+        }
+
+        return new DocCreateResult(docPath, type, workItems);
+    }
+
+    public static DocCreateResult CreateGeneratedDoc(
+        string repoRoot,
+        WorkbenchConfig config,
+        string type,
+        string title,
+        string body,
+        string? path,
+        IList<string> workItems,
+        IList<string> codeRefs,
+        IList<string> tags,
+        IList<string> related,
+        string? status,
+        DocSourceInfo? source,
+        bool force)
+    {
+        if (!allowedTypes.Contains(type))
+        {
+            throw new InvalidOperationException($"Invalid doc type '{type}'.");
+        }
+
+        var docPath = ResolveDocPath(repoRoot, config, type, title, path);
+        if (File.Exists(docPath) && !force)
+        {
+            throw new InvalidOperationException($"Doc already exists: {docPath}");
+        }
+
+        var normalizedBody = DocBodyBuilder.EnsureTitle(body, title);
+        var now = DateTimeOffset.UtcNow;
+        var frontMatter = DocFrontMatterBuilder.BuildGeneratedDocFrontMatter(
+            repoRoot,
+            docPath,
+            type,
+            title,
+            normalizedBody,
+            workItems,
+            codeRefs,
+            tags,
+            related,
+            status,
+            source,
+            now);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(docPath) ?? repoRoot);
+        File.WriteAllText(docPath, frontMatter.Serialize());
+
+        var relative = "/" + Path.GetRelativePath(repoRoot, docPath).Replace('\\', '/');
         foreach (var workItemId in workItems)
         {
             var itemPath = WorkItemService.GetItemPathById(repoRoot, config, workItemId);
@@ -598,7 +652,7 @@ public static class DocService
         return value.ToString();
     }
 
-    private static string ResolveDocPath(
+    internal static string ResolveDocPath(
         string repoRoot,
         WorkbenchConfig config,
         string type,

@@ -1,9 +1,8 @@
 using Microsoft.Agents.AI;
-using Microsoft.Extensions.AI;
 using OpenAI;
 using OpenAI.Chat;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed class AiSummaryClient
 {
@@ -66,16 +65,16 @@ public sealed class AiSummaryClient
     {
         var prompt = $"Summarize the following git diff for a markdown document. " +
                      $"Return 1-2 sentences, no bullets, no markdown.\n\n{diffText}";
-        AgentRunResponse? summary = await agent.RunAsync(prompt).ConfigureAwait(false);
+        AgentRunResponse? summary = await this.agent.RunAsync(prompt).ConfigureAwait(false);
         if (summary == null)
         {
             return null;
         }
 
         var normalized = string.Join(' ', summary.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)).Trim();
-        if (normalized.Length > maxSummaryChars)
+        if (normalized.Length > this.maxSummaryChars)
         {
-            normalized = normalized[..maxSummaryChars].TrimEnd() + "…";
+            normalized = normalized[..this.maxSummaryChars].TrimEnd() + "…";
         }
         return normalized;
     }

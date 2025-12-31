@@ -1,8 +1,7 @@
 using System.Collections;
-using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class ValidationService
 {

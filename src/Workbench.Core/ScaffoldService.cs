@@ -1,6 +1,4 @@
-using System.Text.Json;
-
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class ScaffoldService
 {
@@ -83,7 +81,7 @@ public static class ScaffoldService
         WriteFile(Path.Combine(config.Paths.TemplatesDir, "work-item.spike.md"), DefaultSpikeTemplate);
 
         var configPath = WorkbenchConfig.GetConfigPath(repoRoot);
-        var configJson = JsonSerializer.Serialize(config, WorkbenchJsonContext.Default.WorkbenchConfig);
+        var configJson = JsonSerializer.Serialize(config, Workbench.Core.WorkbenchJsonContext.Default.WorkbenchConfig);
         WriteFile(Path.Combine(".workbench", "config.json"), configJson + "\n");
 
         return new ScaffoldResult(created, skipped, configPath);

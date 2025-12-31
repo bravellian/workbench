@@ -1,4 +1,4 @@
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed record ItemSyncImportEntry(
     [property: JsonPropertyName("issue")] GithubIssuePayload Issue,

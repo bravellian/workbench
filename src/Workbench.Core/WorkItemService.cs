@@ -1,10 +1,7 @@
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class WorkItemService
 {

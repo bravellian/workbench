@@ -1,9 +1,7 @@
 using System.Collections;
-using System.Linq;
 using System.Text;
-using System.Text.Json;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class JsonWriter
 {

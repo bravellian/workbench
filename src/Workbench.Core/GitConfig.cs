@@ -1,10 +1,9 @@
-namespace Workbench
+namespace Workbench.Core;
+
+public sealed record GitConfig
 {
-    public sealed record GitConfig
-    {
-        public string BranchPattern { get; init; } = "work/{id}-{slug}";
-        public string CommitMessagePattern { get; init; } = "Promote {id}: {title}";
-        public string DefaultBaseBranch { get; init; } = "main";
-        public bool RequireCleanWorkingTree { get; init; } = true;
-    }
+    public string BranchPattern { get; init; } = "work/{id}-{slug}";
+    public string CommitMessagePattern { get; init; } = "Promote {id}: {title}";
+    public string DefaultBaseBranch { get; init; } = "main";
+    public bool RequireCleanWorkingTree { get; init; } = true;
 }

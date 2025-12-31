@@ -1,6 +1,4 @@
-using System.Globalization;
-
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class WorkboardService
 {

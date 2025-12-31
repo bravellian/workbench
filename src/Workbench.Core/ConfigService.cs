@@ -1,4 +1,4 @@
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class ConfigService
 {
@@ -14,7 +14,7 @@ public static class ConfigService
             throw new InvalidOperationException("Config path is required.");
         }
 
-        var node = JsonSerializer.SerializeToNode(config, WorkbenchJsonContext.Default.WorkbenchConfig) as JsonObject
+        var node = JsonSerializer.SerializeToNode(config, Workbench.Core.WorkbenchJsonContext.Default.WorkbenchConfig) as JsonObject
             ?? throw new InvalidOperationException("Failed to serialize config.");
 
         var segments = path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -60,7 +60,7 @@ public static class ConfigService
 
         current[leaf] = valueNode;
 
-        var updated = node.Deserialize(WorkbenchJsonContext.Default.WorkbenchConfig);
+        var updated = node.Deserialize(Workbench.Core.WorkbenchJsonContext.Default.WorkbenchConfig);
         if (updated is null)
         {
             throw new InvalidOperationException("Failed to parse updated config.");
@@ -73,7 +73,7 @@ public static class ConfigService
     {
         var path = WorkbenchConfig.GetConfigPath(repoRoot);
         Directory.CreateDirectory(Path.GetDirectoryName(path) ?? repoRoot);
-        var json = JsonSerializer.Serialize(config, WorkbenchJsonContext.Default.WorkbenchConfig);
+        var json = JsonSerializer.Serialize(config, Workbench.Core.WorkbenchJsonContext.Default.WorkbenchConfig);
         File.WriteAllText(path, json + "\n");
     }
 

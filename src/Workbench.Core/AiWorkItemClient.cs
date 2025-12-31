@@ -1,11 +1,8 @@
-using System.Linq;
-using System.Text.Json;
 using Microsoft.Agents.AI;
-using Microsoft.Extensions.AI;
 using OpenAI;
 using OpenAI.Chat;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed class AiWorkItemClient
 {
@@ -83,7 +80,7 @@ public sealed class AiWorkItemClient
         }
 
         var prompt = $"{DefaultPrompt}{input.Trim()}";
-        AgentRunResponse? response = await agent.RunAsync(prompt).ConfigureAwait(false);
+        AgentRunResponse? response = await this.agent.RunAsync(prompt).ConfigureAwait(false);
         if (response == null || string.IsNullOrWhiteSpace(response.Text))
         {
             return null;
@@ -97,7 +94,7 @@ public sealed class AiWorkItemClient
         WorkItemDraft? draft = null;
         try
         {
-            draft = JsonSerializer.Deserialize(json, WorkbenchJsonContext.Default.WorkItemDraft);
+            draft = JsonSerializer.Deserialize(json, Workbench.Core.WorkbenchJsonContext.Default.WorkItemDraft);
         }
         catch (JsonException)
         {

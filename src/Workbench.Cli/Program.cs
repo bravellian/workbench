@@ -1,3 +1,6 @@
+using Workbench.Core;
+using Workbench.Core.Voice;
+
 namespace Workbench.Cli;
 
 using System.CommandLine;
@@ -104,6 +107,99 @@ public class Program
             "spike" => "spike",
             _ => "task"
         };
+    }
+
+    static async Task<string?> CaptureVoiceTranscriptAsync(VoiceConfig config, CancellationToken ct)
+    {
+        var limits = AudioLimiter.Calculate(config.Format, config.MaxDuration, config.MaxUploadBytes);
+        var options = new AudioRecordingOptions(
+            config.Format,
+            limits.MaxDuration,
+            limits.MaxBytes,
+            Path.GetTempPath(),
+            "workbench-voice",
+            FramesPerBuffer: 512);
+
+        var recorder = new PortAudioRecorder();
+        var session = await recorder.StartAsync(options, ct).ConfigureAwait(false);
+        await using (session.ConfigureAwait(false))
+        {
+            Console.WriteLine("Recording... Press ENTER to stop. Press ESC to cancel.");
+
+            while (!session.Completion.IsCompleted)
+            {
+                if (!Console.IsInputRedirected && Console.KeyAvailable)
+                {
+                    var key = Console.ReadKey(intercept: true);
+                    if (key.Key == ConsoleKey.Enter)
+                    {
+                        await session.StopAsync(ct).ConfigureAwait(false);
+                    }
+                    else if (key.Key == ConsoleKey.Escape)
+                    {
+                        await session.CancelAsync(ct).ConfigureAwait(false);
+                    }
+                }
+                await Task.Delay(50, ct).ConfigureAwait(false);
+            }
+
+            var recording = await session.Completion.ConfigureAwait(false);
+            if (recording.WasCanceled)
+            {
+                Console.WriteLine("Recording canceled.");
+                return null;
+            }
+
+            if (!OpenAiTranscriptionClient.TryCreate(out var transcriptionClient, out var reason))
+            {
+                Console.WriteLine($"Transcription disabled: {reason}");
+                CleanupTempFiles(recording.WavPaths);
+                return null;
+            }
+
+            var transcript = string.Empty;
+            var tempFiles = new List<string>();
+            try
+            {
+                var transcriber = new VoiceTranscriptionService(transcriptionClient!, config);
+                var result = await transcriber.TranscribeAsync(recording, ct).ConfigureAwait(false);
+                transcript = result.Transcript.Trim();
+                tempFiles.AddRange(result.TempFiles);
+            }
+            finally
+            {
+                CleanupTempFiles(recording.WavPaths);
+                CleanupTempFiles(tempFiles);
+            }
+
+            if (string.IsNullOrWhiteSpace(transcript))
+            {
+                Console.WriteLine("Transcription returned no text.");
+                return null;
+            }
+
+            return transcript;
+        }
+    }
+
+    static void CleanupTempFiles(IEnumerable<string> paths)
+    {
+        foreach (var path in paths)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup failures.
+#pragma warning disable ERP022
+            }
+#pragma warning restore ERP022
+        }
     }
 
     static async Task<ItemSyncData> RunItemSyncAsync(
@@ -565,7 +661,7 @@ public class Program
                 var payload = new DocCreateOutput(
                     true,
                     new DocCreateData(result.Path, result.Type, result.WorkItems));
-                WriteJson(payload, WorkbenchJsonContext.Default.DocCreateOutput);
+                WriteJson(payload, Core.WorkbenchJsonContext.Default.DocCreateOutput);
             }
             else
             {
@@ -640,7 +736,7 @@ public class Program
                         workItems.ToList(),
                         itemsUpdated,
                         docUpdated));
-                WriteJson(payload, WorkbenchJsonContext.Default.DocLinkOutput);
+                WriteJson(payload, Core.WorkbenchJsonContext.Default.DocLinkOutput);
             }
             else
             {
@@ -1140,7 +1236,7 @@ public class Program
                 var payload = new PrOutput(
                     true,
                     new PrData(prUrl, item.Id));
-                WriteJson(payload, WorkbenchJsonContext.Default.PrOutput);
+                WriteJson(payload, Core.WorkbenchJsonContext.Default.PrOutput);
             }
             else
             {
@@ -1428,7 +1524,7 @@ public class Program
                     var payload = new DoctorOutput(
                         !hasError,
                         new DoctorData(repoRoot, checks));
-                    WriteJson(payload, WorkbenchJsonContext.Default.DoctorOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.DoctorOutput);
                 }
                 else
                 {
@@ -1592,7 +1688,7 @@ public class Program
                     var payload = new ScaffoldOutput(
                         true,
                         new ScaffoldData(result.Created, result.Skipped, result.ConfigPath));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ScaffoldOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ScaffoldOutput);
                 }
                 else
                 {
@@ -1642,7 +1738,7 @@ public class Program
                         new ConfigData(
                             config,
                             new ConfigSources(true, WorkbenchConfig.GetConfigPath(repoRoot))));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ConfigOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ConfigOutput);
                 }
                 else
                 {
@@ -1651,7 +1747,7 @@ public class Program
                     {
                         Console.WriteLine($"Config error: {configError}");
                     }
-                    Console.WriteLine(JsonSerializer.Serialize(config, WorkbenchJsonContext.Default.WorkbenchConfig));
+                    Console.WriteLine(JsonSerializer.Serialize(config, Core.WorkbenchJsonContext.Default.WorkbenchConfig));
                 }
                 SetExitCode(configError is null ? 0 : 2);
             }
@@ -1712,7 +1808,7 @@ public class Program
                     var payload = new ConfigSetOutput(
                         true,
                         new ConfigSetData(configPath, updatedConfig, changed));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ConfigSetOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ConfigSetOutput);
                 }
                 else
                 {
@@ -1775,7 +1871,7 @@ public class Program
                     var payload = new CredentialUpdateOutput(
                         true,
                         new CredentialUpdateData(result.Path, result.Key, result.Created, result.Updated, result.Removed));
-                    WriteJson(payload, WorkbenchJsonContext.Default.CredentialUpdateOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.CredentialUpdateOutput);
                 }
                 else
                 {
@@ -1819,7 +1915,7 @@ public class Program
                     var payload = new CredentialUpdateOutput(
                         true,
                         new CredentialUpdateData(result.Path, result.Key, result.Created, result.Updated, result.Removed));
-                    WriteJson(payload, WorkbenchJsonContext.Default.CredentialUpdateOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.CredentialUpdateOutput);
                 }
                 else
                 {
@@ -1922,7 +2018,7 @@ public class Program
                     var payload = new ItemCreateOutput(
                         true,
                         new ItemCreateData(result.Id, result.Slug, result.Path));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemCreateOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemCreateOutput);
                 }
                 else
                 {
@@ -2012,7 +2108,7 @@ public class Program
                     var payload = new ItemCreateOutput(
                         true,
                         new ItemCreateData(result.Id, result.Slug, result.Path));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemCreateOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemCreateOutput);
                 }
                 else
                 {
@@ -2101,7 +2197,7 @@ public class Program
                     var payload = new ItemImportOutput(
                         true,
                         new ItemImportData(imported));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemImportOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemImportOutput);
                 }
                 else
                 {
@@ -2175,7 +2271,7 @@ public class Program
                     var payload = new ItemSyncOutput(
                         true,
                         data);
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemSyncOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemSyncOutput);
                 }
                 else
                 {
@@ -2281,7 +2377,7 @@ public class Program
                     var payload = new ItemListOutput(
                         true,
                         new ItemListData(payloadItems));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemListOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemListOutput);
                 }
                 else
                 {
@@ -2329,7 +2425,7 @@ public class Program
                     var payload = new ItemShowOutput(
                         true,
                         new ItemShowData(ItemToPayload(item)));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemShowOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemShowOutput);
                 }
                 else
                 {
@@ -2395,7 +2491,7 @@ public class Program
                     var payload = new ItemStatusOutput(
                         true,
                         new ItemStatusData(ItemToPayload(updated)));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemStatusOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemStatusOutput);
                 }
                 else
                 {
@@ -2455,7 +2551,7 @@ public class Program
                     var payload = new ItemCloseOutput(
                         true,
                         new ItemCloseData(ItemToPayload(updated), move));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemCloseOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemCloseOutput);
                 }
                 else
                 {
@@ -2508,7 +2604,7 @@ public class Program
                     var payload = new ItemMoveOutput(
                         true,
                         new ItemMoveData(ItemToPayload(updated)));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemMoveOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemMoveOutput);
                 }
                 else
                 {
@@ -2561,7 +2657,7 @@ public class Program
                     var payload = new ItemRenameOutput(
                         true,
                         new ItemRenameData(ItemToPayload(updated)));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemRenameOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemRenameOutput);
                 }
                 else
                 {
@@ -2613,7 +2709,7 @@ public class Program
                     var payload = new ItemNormalizeOutput(
                         true,
                         new ItemNormalizeData(updated, dryRun));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemNormalizeOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemNormalizeOutput);
                 }
                 else
                 {
@@ -2687,7 +2783,7 @@ public class Program
                     var payload = new ItemDeleteOutput(
                         true,
                         new ItemDeleteData(ItemToPayload(item), docsUpdated));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemDeleteOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemDeleteOutput);
                 }
                 else
                 {
@@ -2824,7 +2920,7 @@ public class Program
                     var payload = new ItemShowOutput(
                         true,
                         new ItemShowData(ItemToPayload(item)));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemShowOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemShowOutput);
                 }
                 else if (updated)
                 {
@@ -2969,7 +3065,7 @@ public class Program
                     var payload = new ItemShowOutput(
                         true,
                         new ItemShowData(ItemToPayload(item)));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ItemShowOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemShowOutput);
                 }
                 else if (updated)
                 {
@@ -3057,7 +3153,7 @@ public class Program
                     var payload = new NormalizeOutput(
                         true,
                         new NormalizeData(itemsUpdated, docsUpdated, dryRun, normalizeItems, normalizeDocs));
-                    WriteJson(payload, WorkbenchJsonContext.Default.NormalizeOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.NormalizeOutput);
                 }
                 else
                 {
@@ -3104,7 +3200,7 @@ public class Program
                     var payload = new BoardOutput(
                         true,
                         new BoardData(result.Path, result.Counts));
-                    WriteJson(payload, WorkbenchJsonContext.Default.BoardOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.BoardOutput);
                 }
                 else
                 {
@@ -3230,7 +3326,7 @@ public class Program
                             new CommitInfo(sha, commitMessage),
                             shouldPush,
                             prUrl));
-                    WriteJson(payload, WorkbenchJsonContext.Default.PromoteOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.PromoteOutput);
                 }
                 else
                 {
@@ -3459,7 +3555,7 @@ public class Program
                     var payload = new DocDeleteOutput(
                         true,
                         new DocDeleteData(docFullPath, itemsUpdated));
-                    WriteJson(payload, WorkbenchJsonContext.Default.DocDeleteOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.DocDeleteOutput);
                 }
                 else
                 {
@@ -3613,7 +3709,7 @@ public class Program
                             result.ItemsUpdated,
                             result.MissingDocs,
                             result.MissingItems));
-                    WriteJson(payload, WorkbenchJsonContext.Default.DocSyncOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.DocSyncOutput);
                 }
                 else
                 {
@@ -3712,7 +3808,7 @@ public class Program
                             result.SkippedFiles,
                             result.Errors,
                             result.Warnings));
-                    WriteJson(payload, WorkbenchJsonContext.Default.DocSummaryOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.DocSummaryOutput);
                 }
                 else
                 {
@@ -3759,6 +3855,210 @@ public class Program
         docCommand.Subcommands.Add(docSyncCommand);
         docCommand.Subcommands.Add(docSummaryCommand);
         root.Subcommands.Add(docCommand);
+
+        var voiceCommand = new Command("voice", "Group: voice input commands.");
+
+        var voiceWorkItemCommand = new Command("workitem", "Create a work item from voice input.");
+        var voiceWorkItemTypeOption = new Option<string?>("--type")
+        {
+            Description = "Work item type: bug, task, spike (defaults to AI choice)."
+        };
+        voiceWorkItemTypeOption.CompletionSources.Add("bug", "task", "spike");
+        var voiceWorkItemStatusOption = CreateStatusOption();
+        var voiceWorkItemPriorityOption = CreatePriorityOption();
+        var voiceWorkItemOwnerOption = CreateOwnerOption();
+        voiceWorkItemCommand.Options.Add(voiceWorkItemTypeOption);
+        voiceWorkItemCommand.Options.Add(voiceWorkItemStatusOption);
+        voiceWorkItemCommand.Options.Add(voiceWorkItemPriorityOption);
+        voiceWorkItemCommand.Options.Add(voiceWorkItemOwnerOption);
+        voiceWorkItemCommand.SetAction(async parseResult =>
+        {
+            try
+            {
+                var repo = parseResult.GetValue(repoOption);
+                var format = parseResult.GetValue(formatOption) ?? "table";
+                var typeOverride = parseResult.GetValue(voiceWorkItemTypeOption);
+                var status = parseResult.GetValue(voiceWorkItemStatusOption);
+                var priority = parseResult.GetValue(voiceWorkItemPriorityOption);
+                var owner = parseResult.GetValue(voiceWorkItemOwnerOption);
+
+                var repoRoot = ResolveRepo(repo);
+                var resolvedFormat = ResolveFormat(format);
+                var config = WorkbenchConfig.Load(repoRoot, out var configError);
+                if (configError is not null)
+                {
+                    Console.WriteLine($"Config error: {configError}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var voiceConfig = VoiceConfig.Load();
+                var transcript = await CaptureVoiceTranscriptAsync(voiceConfig, CancellationToken.None).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(transcript))
+                {
+                    SetExitCode(2);
+                    return;
+                }
+
+                if (!AiWorkItemClient.TryCreate(out var client, out var reason))
+                {
+                    Console.WriteLine($"AI work item generation disabled: {reason}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var draft = await client!.GenerateDraftAsync(transcript).ConfigureAwait(false);
+                if (draft == null || string.IsNullOrWhiteSpace(draft.Title))
+                {
+                    Console.WriteLine("AI did not return a valid work item draft.");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var type = ResolveWorkItemType(typeOverride, draft.Type);
+                var result = WorkItemService.CreateItem(repoRoot, config, type, draft.Title, status, priority, owner);
+                WorkItemService.ApplyDraft(result.Path, draft);
+
+                if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var payload = new ItemCreateOutput(
+                        true,
+                        new ItemCreateData(result.Id, result.Slug, result.Path));
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ItemCreateOutput);
+                }
+                else
+                {
+                    Console.WriteLine($"{result.Id} created at {result.Path}");
+                }
+                SetExitCode(0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                SetExitCode(2);
+            }
+        });
+        voiceCommand.Subcommands.Add(voiceWorkItemCommand);
+
+        var voiceDocCommand = new Command("doc", "Create a documentation file from voice input.");
+        var voiceDocTypeOption = new Option<string>("--type")
+        {
+            Description = "Doc type: spec, adr, doc, runbook, guide",
+            Required = true
+        };
+        voiceDocTypeOption.CompletionSources.Add("spec", "adr", "doc", "runbook", "guide");
+        var voiceDocOutOption = new Option<string?>("--out")
+        {
+            Description = "Output path (defaults by type)."
+        };
+        var voiceDocTitleOption = new Option<string?>("--title")
+        {
+            Description = "Doc title (optional)."
+        };
+        voiceDocCommand.Options.Add(voiceDocTypeOption);
+        voiceDocCommand.Options.Add(voiceDocOutOption);
+        voiceDocCommand.Options.Add(voiceDocTitleOption);
+        voiceDocCommand.SetAction(async parseResult =>
+        {
+            try
+            {
+                var repo = parseResult.GetValue(repoOption);
+                var format = parseResult.GetValue(formatOption) ?? "table";
+                var type = parseResult.GetValue(voiceDocTypeOption) ?? string.Empty;
+                var outPath = parseResult.GetValue(voiceDocOutOption);
+                var titleOverride = parseResult.GetValue(voiceDocTitleOption);
+
+                var repoRoot = ResolveRepo(repo);
+                var resolvedFormat = ResolveFormat(format);
+                var config = WorkbenchConfig.Load(repoRoot, out var configError);
+                if (configError is not null)
+                {
+                    Console.WriteLine($"Config error: {configError}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var voiceConfig = VoiceConfig.Load();
+                var transcript = await CaptureVoiceTranscriptAsync(voiceConfig, CancellationToken.None).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(transcript))
+                {
+                    SetExitCode(2);
+                    return;
+                }
+
+                if (!AiDocClient.TryCreate(out var client, out var reason))
+                {
+                    Console.WriteLine($"AI doc generation disabled: {reason}");
+                    SetExitCode(2);
+                    return;
+                }
+
+                var draft = await client!.GenerateDraftAsync(type, transcript, titleOverride).ConfigureAwait(false);
+                if (draft == null)
+                {
+                    Console.WriteLine("AI did not return a valid doc draft.");
+                    SetExitCode(2);
+                    return;
+                }
+
+                string title;
+                if (!string.IsNullOrWhiteSpace(titleOverride))
+                {
+                    title = titleOverride.Trim();
+                }
+                else
+                {
+                    title = !string.IsNullOrWhiteSpace(draft.Title)
+                        ? draft.Title
+                        : DocTitleHelper.FromTranscript(transcript);
+                }
+
+                var body = !string.IsNullOrWhiteSpace(draft.Body)
+                    ? draft.Body
+                    : DocBodyBuilder.BuildSkeleton(type, title);
+
+                var excerpt = DocFrontMatterBuilder.BuildTranscriptExcerpt(transcript, voiceConfig.TranscriptExcerptMaxChars);
+                var source = new DocSourceInfo(
+                    "voice",
+                    string.IsNullOrWhiteSpace(excerpt) ? null : excerpt,
+                    new DocAudioInfo(voiceConfig.Format.SampleRateHz, voiceConfig.Format.Channels, "wav"));
+
+                var created = DocService.CreateGeneratedDoc(
+                    repoRoot,
+                    config,
+                    type,
+                    title,
+                    body,
+                    outPath,
+                    new List<string>(),
+                    new List<string>(),
+                    new List<string>(),
+                    new List<string>(),
+                    "draft",
+                    source,
+                    force: false);
+
+                if (string.Equals(resolvedFormat, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var payload = new DocCreateOutput(
+                        true,
+                        new DocCreateData(created.Path, created.Type, created.WorkItems));
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.DocCreateOutput);
+                }
+                else
+                {
+                    Console.WriteLine($"Doc created at {created.Path}");
+                }
+                SetExitCode(0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                SetExitCode(2);
+            }
+        });
+        voiceCommand.Subcommands.Add(voiceDocCommand);
+        root.Subcommands.Add(voiceCommand);
 
         var navCommand = new Command("nav", "Group: navigation/index commands.");
         var navSyncCommand = new Command("sync", "Sync links and navigation indexes.");
@@ -3823,7 +4123,7 @@ public class Program
                             result.MissingDocs,
                             result.MissingItems,
                             result.Warnings));
-                    WriteJson(payload, WorkbenchJsonContext.Default.NavSyncOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.NavSyncOutput);
                 }
                 else
                 {
@@ -4000,7 +4300,7 @@ public class Program
                     var payload = new RepoSyncOutput(
                         true,
                         new RepoSyncData(itemData, docData, navData, dryRun));
-                    WriteJson(payload, WorkbenchJsonContext.Default.RepoSyncOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.RepoSyncOutput);
                 }
                 else
                 {
@@ -4350,7 +4650,7 @@ public class Program
                                 result.Warnings.Count,
                                 result.WorkItemCount,
                                 result.MarkdownFileCount)));
-                    WriteJson(payload, WorkbenchJsonContext.Default.ValidateOutput);
+                    WriteJson(payload, Core.WorkbenchJsonContext.Default.ValidateOutput);
                 }
                 else
                 {

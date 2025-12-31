@@ -1,4 +1,4 @@
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed record GithubIssuePayload(
     [property: JsonPropertyName("repo")] string Repo,

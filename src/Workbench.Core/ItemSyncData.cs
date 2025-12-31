@@ -1,4 +1,4 @@
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed record ItemSyncData(
     [property: JsonPropertyName("imported")] IList<ItemSyncImportEntry> Imported,

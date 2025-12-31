@@ -1,4 +1,4 @@
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed record ItemSyncItemUpdateEntry(
     [property: JsonPropertyName("itemId")] string ItemId,

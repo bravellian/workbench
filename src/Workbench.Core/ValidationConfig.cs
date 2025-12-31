@@ -1,6 +1,4 @@
-using System.Collections.Generic;
-
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed record ValidationConfig(
     IList<string> LinkExclude,

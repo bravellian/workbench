@@ -1,3 +1,7 @@
+using Workbench.Core;
+using Workbench.Core.Voice;
+using Workbench.Core.VoiceViz;
+
 namespace Workbench.Tui;
 
 using System.Diagnostics;
@@ -5,6 +9,7 @@ using System.Linq;
 using Terminal.Gui;
 using Terminal.Gui.Trees;
 using Workbench;
+using Workbench.Tui.VoiceViz;
 
 public static class TuiEntrypoint
 {
@@ -25,6 +30,11 @@ public static class TuiEntrypoint
         try
         {
             var top = Application.Top;
+            var inputScheme = new ColorScheme
+            {
+                Normal = Application.Driver.MakeAttribute(Color.Black, Color.White),
+                Focus = Application.Driver.MakeAttribute(Color.Black, Color.White)
+            };
             var window = new Window("Workbench TUI")
             {
                 X = 0,
@@ -450,6 +460,11 @@ public static class TuiEntrypoint
                 var force = false;
                 var workboard = true;
 
+                var summaryLabel = new Label("Sync nav updates doc backlinks, indexes, and workboard.")
+                {
+                    X = 1,
+                    Y = 0
+                };
                 var includeDoneCheck = new CheckBox("Include done items") { X = 1, Y = 1, Checked = includeDone };
                 var syncIssuesCheck = new CheckBox("Sync issue links") { X = 1, Y = 2, Checked = syncIssues };
                 var forceCheck = new CheckBox("Force index rewrite") { X = 1, Y = 3, Checked = force };
@@ -457,7 +472,7 @@ public static class TuiEntrypoint
                 var previewLabel = new Label("Command: (none)") { X = 1, Y = 6, Width = Dim.Fill(2) };
 
                 var dialog = new Dialog("Sync navigation", 70, 14);
-                dialog.Add(includeDoneCheck, syncIssuesCheck, forceCheck, workboardCheck, previewLabel);
+                dialog.Add(summaryLabel, includeDoneCheck, syncIssuesCheck, forceCheck, workboardCheck, previewLabel);
 
                 void UpdatePreview()
                 {
@@ -569,6 +584,11 @@ public static class TuiEntrypoint
 
             void ShowValidateDialog()
             {
+                var summaryLabel = new Label("Validate repo checks items, docs, and links.")
+                {
+                    X = 1,
+                    Y = 0
+                };
                 var skipDocSchemaCheck = new CheckBox("Skip doc schema") { X = 1, Y = 1, Checked = false };
                 var includeLabel = new Label("Link include (comma-separated):") { X = 1, Y = 3 };
                 var includeField = new TextField(string.Empty) { X = 1, Y = 4, Width = Dim.Fill(2) };
@@ -577,7 +597,7 @@ public static class TuiEntrypoint
                 var previewLabel = new Label("Command: (none)") { X = 1, Y = 9, Width = Dim.Fill(2) };
 
                 var dialog = new Dialog("Validate repo", 76, 16);
-                dialog.Add(skipDocSchemaCheck, includeLabel, includeField, excludeLabel, excludeField, previewLabel);
+                dialog.Add(summaryLabel, skipDocSchemaCheck, includeLabel, includeField, excludeLabel, excludeField, previewLabel);
 
                 void UpdatePreview()
                 {
@@ -649,6 +669,170 @@ public static class TuiEntrypoint
                 UpdateDetails(listView.SelectedItem);
             }
 
+            void ShowRecordingDialog()
+            {
+                var voiceConfig = VoiceConfig.Load();
+                var options = EqualizerOptions.Load();
+                var model = new EqualizerModel(options.BandCount);
+                var ringSize = Math.Max(options.FftSize * 4, 4096);
+                var tap = new AudioTap(model, options, ringSize);
+                SpectrumAnalyzer? analyzer = null;
+
+                if (options.EnableSpectrum && tap.RingBuffer is not null)
+                {
+                    analyzer = new SpectrumAnalyzer(model, tap.RingBuffer, options, voiceConfig.Format.SampleRateHz);
+                    analyzer.Start();
+                }
+
+                var dialog = new Dialog("Recording", 60, 16)
+                {
+                    ColorScheme = Colors.Dialog
+                };
+                var instructions = new Label("Press Stop to finish or Cancel to discard.")
+                {
+                    X = 1,
+                    Y = 1,
+                    Width = Dim.Fill(2)
+                };
+                var equalizerView = new EqualizerView(model)
+                {
+                    X = 1,
+                    Y = 3,
+                    Width = Dim.Fill(2),
+                    Height = 7
+                };
+
+                dialog.Add(instructions, equalizerView);
+
+                var stopButton = new Button("Stop");
+                var cancelButton = new Button("Cancel");
+
+                IAudioRecordingSession? session = null;
+                try
+                {
+                    var limits = AudioLimiter.Calculate(
+                        voiceConfig.Format,
+                        voiceConfig.MaxDuration,
+                        voiceConfig.MaxUploadBytes);
+                    var recordingOptions = new AudioRecordingOptions(
+                        voiceConfig.Format,
+                        limits.MaxDuration,
+                        limits.MaxBytes,
+                        Path.GetTempPath(),
+                        "workbench-voice",
+                        FramesPerBuffer: 512,
+                        Tap: tap);
+                    var recorder = new PortAudioRecorder();
+#pragma warning disable RS0030
+                    session = recorder.StartAsync(recordingOptions, CancellationToken.None).GetAwaiter().GetResult();
+#pragma warning restore RS0030
+                }
+                catch (Exception ex)
+                {
+#pragma warning disable RS0030
+                    analyzer?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+#pragma warning restore RS0030
+                    ShowError(ex);
+                    return;
+                }
+
+                var refreshToken = Application.MainLoop.AddTimeout(TimeSpan.FromMilliseconds(50), _ =>
+                {
+                    equalizerView.SetNeedsDisplay();
+                    return true;
+                });
+
+                dialog.KeyDown += args =>
+                {
+                    if (args.KeyEvent.Key == Key.Esc)
+                    {
+                        _ = StopRecordingAsync(dialog, session, cancel: true);
+                        args.Handled = true;
+                    }
+                    else if (args.KeyEvent.Key == Key.Enter)
+                    {
+                        _ = StopRecordingAsync(dialog, session, cancel: false);
+                        args.Handled = true;
+                    }
+                };
+
+                stopButton.Clicked += () => _ = StopRecordingAsync(dialog, session, cancel: false);
+                cancelButton.Clicked += () => _ = StopRecordingAsync(dialog, session, cancel: true);
+                dialog.AddButton(stopButton);
+                dialog.AddButton(cancelButton);
+
+                Application.Run(dialog);
+
+                Application.MainLoop.RemoveTimeout(refreshToken);
+
+                if (session is not null)
+                {
+                    if (!session.Completion.IsCompleted)
+                    {
+#pragma warning disable RS0030
+                        session.CancelAsync(CancellationToken.None).GetAwaiter().GetResult();
+#pragma warning restore RS0030
+                    }
+
+                    if (session.Completion != null)
+                    {
+#pragma warning disable RS0030
+                        var result = session.Completion.GetAwaiter().GetResult();
+#pragma warning restore RS0030
+                        if (!result.WasCanceled)
+                        {
+                            foreach (var path in result.WavPaths)
+                            {
+                                try
+                                {
+                                    if (File.Exists(path))
+                                    {
+                                        File.Delete(path);
+                                    }
+                                }
+                                catch
+                                {
+                                    // ignored
+#pragma warning disable ERP022
+                                }
+#pragma warning restore ERP022
+                            }
+                        }
+                    }
+
+#pragma warning disable RS0030
+                    session.DisposeAsync().AsTask().GetAwaiter().GetResult();
+#pragma warning restore RS0030
+                }
+
+#pragma warning disable RS0030
+                analyzer?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+#pragma warning restore RS0030
+            }
+
+            static async Task StopRecordingAsync(Dialog dialog, IAudioRecordingSession session, bool cancel)
+            {
+                try
+                {
+                    if (cancel)
+                    {
+                        await session.CancelAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await session.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+                catch
+                {
+                    // ignored
+#pragma warning disable ERP022
+                }
+#pragma warning restore ERP022
+
+                Application.MainLoop.Invoke(() => Application.RequestStop(dialog));
+            }
+
             void ShowCreateDialog()
             {
                 var typeField = new TextField("task");
@@ -668,11 +852,11 @@ public static class TuiEntrypoint
                 {
                     ColorScheme = Colors.Dialog
                 };
-                typeField.ColorScheme = Colors.Dialog;
-                titleField.ColorScheme = Colors.Dialog;
-                statusFieldInput.ColorScheme = Colors.Dialog;
-                ownerField.ColorScheme = Colors.Dialog;
-                priorityField.ColorScheme = Colors.Dialog;
+                typeField.ColorScheme = inputScheme;
+                titleField.ColorScheme = inputScheme;
+                statusFieldInput.ColorScheme = inputScheme;
+                ownerField.ColorScheme = inputScheme;
+                priorityField.ColorScheme = inputScheme;
                 dialog.Add(
                     new Label("Type (task/bug/spike):") { X = 1, Y = 1 },
                     new Label("Title:") { X = 1, Y = 3 },
@@ -800,8 +984,8 @@ public static class TuiEntrypoint
                 {
                     ColorScheme = Colors.Dialog
                 };
-                statusFieldInput.ColorScheme = Colors.Dialog;
-                noteField.ColorScheme = Colors.Dialog;
+                statusFieldInput.ColorScheme = inputScheme;
+                noteField.ColorScheme = inputScheme;
                 dialog.Add(
                     new Label("Status:") { X = 1, Y = 1 },
                     new Label("Note:") { X = 1, Y = 3 },
@@ -906,9 +1090,9 @@ public static class TuiEntrypoint
                 {
                     ColorScheme = Colors.Dialog
                 };
-                typeField.ColorScheme = Colors.Dialog;
-                titleField.ColorScheme = Colors.Dialog;
-                pathField.ColorScheme = Colors.Dialog;
+                typeField.ColorScheme = inputScheme;
+                titleField.ColorScheme = inputScheme;
+                pathField.ColorScheme = inputScheme;
                 dialog.Add(
                     new Label("Type (spec/adr/doc/runbook/guide):") { X = 1, Y = 1 },
                     new Label("Title:") { X = 1, Y = 3 },
@@ -1009,9 +1193,9 @@ public static class TuiEntrypoint
                 {
                     ColorScheme = Colors.Dialog
                 };
-                typeField.ColorScheme = Colors.Dialog;
-                titleField.ColorScheme = Colors.Dialog;
-                pathField.ColorScheme = Colors.Dialog;
+                typeField.ColorScheme = inputScheme;
+                titleField.ColorScheme = inputScheme;
+                pathField.ColorScheme = inputScheme;
 
                 dialog.Add(
                     new Label("Type (spec/adr/doc/runbook/guide):") { X = 1, Y = 1 },
@@ -1142,6 +1326,7 @@ public static class TuiEntrypoint
                     items.Add(new StatusItem(Key.F9, "~F9~ Sync Nav", ShowSyncDialog));
                     items.Add(new StatusItem(Key.F10, "~F10~ Validate Repo", ShowValidateDialog));
                     items.Add(new StatusItem(Key.F11, "~F11~ Dry-run", ToggleDryRun));
+                    items.Add(new StatusItem(Key.F12, "~F12~ Record", ShowRecordingDialog));
                 }
                 else
                 {

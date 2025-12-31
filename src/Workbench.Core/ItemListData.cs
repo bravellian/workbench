@@ -1,5 +1,4 @@
-namespace Workbench
-{
-    public sealed record ItemListData(
-        [property: JsonPropertyName("items")] IList<ItemSummary> Items);
-}
+namespace Workbench.Core;
+
+public sealed record ItemListData(
+    [property: JsonPropertyName("items")] IList<ItemSummary> Items);

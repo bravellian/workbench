@@ -1,7 +1,4 @@
-using System.Globalization;
-using System.Linq;
-
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class GithubService
 {

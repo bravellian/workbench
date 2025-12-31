@@ -93,6 +93,9 @@ Commands:
 - `workbench item generate --prompt "<...>" [--type <bug|task|spike>] [--status <...>] [--priority <...>] [--owner <...>]`
   - Generate a work item with AI from freeform text and create it in `docs/70-work/items`.
   - Example: `workbench item generate --prompt "Add guardrails to prevent empty summaries"`
+- `workbench voice workitem [--type <bug|task|spike>] [--status <...>] [--priority <...>] [--owner <...>]`
+  - Record voice input, transcribe it, and generate a work item draft.
+  - Example: `workbench voice workitem --type task`
 - Status values: `draft`, `ready`, `in-progress`, `blocked`, `done`, `dropped`.
 - `workbench item import --issue <id|url...> [--type <bug|task|spike>] [--status <...>] [--priority <...>] [--owner <...>]`
   - Import GitHub issues into work items, linking related PRs when available.
@@ -150,6 +153,13 @@ Commands:
 - `workbench doc new --type <spec|adr|doc|runbook|guide> --title "<...>" [--path <...>] [--work-item <ID...>] [--code-ref <ref...>] [--force]`
   - Create a documentation file with Workbench front matter and optional backlinks.
   - Example: `workbench doc new --type spec --title "Payment flow" --work-item TASK-0042`
+- `workbench voice doc --type <spec|adr|doc|runbook|guide> [--out <...>] [--title "<...>"]`
+  - Record voice input, transcribe it, and generate a documentation file.
+  - Example: `workbench voice doc --type adr --title "Decision on caching"`
+
+Recording visualization:
+- The recording dialog shows a level meter/equalizer while capturing audio.
+- Optional env vars: `WORKBENCH_VOICE_VIZ_BANDS`, `WORKBENCH_VOICE_VIZ_UPDATE_HZ`, `WORKBENCH_VOICE_VIZ_FFT_SIZE`, `WORKBENCH_VOICE_VIZ_LEVEL_BOOST`, `WORKBENCH_VOICE_VIZ_SPECTRUM`.
 - `workbench doc delete --path <...> [--keep-links]`
   - Delete a documentation file and remove links from work items (unless `--keep-links`).
   - Example: `workbench doc delete --path docs/10-product/payment-flow.md`

@@ -1,4 +1,5 @@
 using Workbench;
+using Workbench.Core;
 
 namespace Workbench.Tests;
 

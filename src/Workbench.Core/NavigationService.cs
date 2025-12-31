@@ -1,8 +1,7 @@
 using System.Collections;
-using System.Globalization;
 using System.Text;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class NavigationService
 {

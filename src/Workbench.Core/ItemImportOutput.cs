@@ -1,4 +1,4 @@
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed record ItemImportOutput(
     [property: JsonPropertyName("ok")] bool Ok,

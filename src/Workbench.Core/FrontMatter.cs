@@ -1,7 +1,6 @@
 using System.Collections;
-using System.Linq;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed class FrontMatter
 {
@@ -10,8 +9,8 @@ public sealed class FrontMatter
 
     public FrontMatter(IDictionary<string, object?> data, string body)
     {
-        Data = data;
-        Body = body;
+        this.Data = data;
+        this.Body = body;
     }
 
     public static bool TryParse(string content, out FrontMatter? frontMatter, out string? error)
@@ -53,8 +52,8 @@ public sealed class FrontMatter
 
     public string Serialize()
     {
-        var yaml = SerializeMap(Data, indent: 0).TrimEnd('\n');
-        return $"---\n{yaml}\n---\n\n{Body}".TrimEnd() + "\n";
+        var yaml = SerializeMap(this.Data, indent: 0).TrimEnd('\n');
+        return $"---\n{yaml}\n---\n\n{this.Body}".TrimEnd() + "\n";
     }
 
     private static bool TryParseYaml(string yamlText, out Dictionary<string, object?> data, out string? error)

@@ -1,9 +1,4 @@
-using System.Diagnostics;
-using System.Globalization;
-using System.Linq;
-using System.Text.Json;
-
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed class GhCliGithubProvider : IGithubProvider
 {
@@ -50,7 +45,7 @@ public sealed class GhCliGithubProvider : IGithubProvider
         GithubService.AuthStatus status;
         try
         {
-            status = await CheckAuthStatusAsync(repoRoot, host).ConfigureAwait(false);
+            status = await this.CheckAuthStatusAsync(repoRoot, host).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -70,7 +65,7 @@ public sealed class GhCliGithubProvider : IGithubProvider
 
     public async Task<GithubIssue> FetchIssueAsync(string repoRoot, GithubIssueRef issueRef)
     {
-        await EnsureAuthenticatedAsync(repoRoot, issueRef.Repo.Host).ConfigureAwait(false);
+        await this.EnsureAuthenticatedAsync(repoRoot, issueRef.Repo.Host).ConfigureAwait(false);
 
         const string Query = """
             query($owner: String!, $name: String!, $number: Int!) {
@@ -136,7 +131,7 @@ public sealed class GhCliGithubProvider : IGithubProvider
 
     public async Task<IList<GithubIssue>> ListIssuesAsync(string repoRoot, GithubRepoRef repo, int limit = 1000)
     {
-        await EnsureAuthenticatedAsync(repoRoot, repo.Host).ConfigureAwait(false);
+        await this.EnsureAuthenticatedAsync(repoRoot, repo.Host).ConfigureAwait(false);
 
         var args = new List<string> { "issue", "list", "--state", "all", "--limit", limit.ToString(CultureInfo.InvariantCulture) };
         if (!string.IsNullOrWhiteSpace(repo.Host) && !string.Equals(repo.Host, DefaultHost, StringComparison.OrdinalIgnoreCase))
@@ -200,7 +195,7 @@ public sealed class GhCliGithubProvider : IGithubProvider
 
     public async Task<string> CreateIssueAsync(string repoRoot, GithubRepoRef repo, string title, string body, IEnumerable<string> labels)
     {
-        await EnsureAuthenticatedAsync(repoRoot, repo.Host).ConfigureAwait(false);
+        await this.EnsureAuthenticatedAsync(repoRoot, repo.Host).ConfigureAwait(false);
 
         var args = new List<string> { "issue", "create", "--title", title, "--body", body };
         if (!string.IsNullOrWhiteSpace(repo.Host) && !string.Equals(repo.Host, DefaultHost, StringComparison.OrdinalIgnoreCase))
@@ -228,7 +223,7 @@ public sealed class GhCliGithubProvider : IGithubProvider
 
     public async Task UpdateIssueAsync(string repoRoot, GithubIssueRef issueRef, string title, string body)
     {
-        await EnsureAuthenticatedAsync(repoRoot, issueRef.Repo.Host).ConfigureAwait(false);
+        await this.EnsureAuthenticatedAsync(repoRoot, issueRef.Repo.Host).ConfigureAwait(false);
 
         var args = new List<string> { "issue", "edit", issueRef.Number.ToString(CultureInfo.InvariantCulture), "--title", title, "--body", body };
         if (!string.IsNullOrWhiteSpace(issueRef.Repo.Host) && !string.Equals(issueRef.Repo.Host, DefaultHost, StringComparison.OrdinalIgnoreCase))
@@ -248,7 +243,7 @@ public sealed class GhCliGithubProvider : IGithubProvider
 
     public async Task<string> CreatePullRequestAsync(string repoRoot, GithubRepoRef repo, string title, string body, string? baseBranch, bool draft)
     {
-        await EnsureAuthenticatedAsync(repoRoot).ConfigureAwait(false);
+        await this.EnsureAuthenticatedAsync(repoRoot).ConfigureAwait(false);
 
         var args = new List<string> { "pr", "create", "--title", title, "--body", body };
         if (!string.IsNullOrWhiteSpace(baseBranch))

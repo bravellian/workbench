@@ -1,6 +1,4 @@
-using System.Text.Json.Serialization;
-
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed record RepoSyncData(
     [property: JsonPropertyName("items")] ItemSyncData? Items,

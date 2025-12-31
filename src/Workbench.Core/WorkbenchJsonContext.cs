@@ -1,12 +1,11 @@
-using System.Text.Json.Serialization;
-
-namespace Workbench;
+namespace Workbench.Core;
 
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     WriteIndented = true)]
 [JsonSerializable(typeof(WorkbenchConfig))]
 [JsonSerializable(typeof(WorkItemDraft))]
+[JsonSerializable(typeof(DocDraft))]
 [JsonSerializable(typeof(DoctorOutput))]
 [JsonSerializable(typeof(ScaffoldOutput))]
 [JsonSerializable(typeof(ConfigOutput))]

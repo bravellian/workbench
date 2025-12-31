@@ -16,6 +16,30 @@
         "pathHistory": { "type": "array", "items": { "type": "string" } },
         "changeNotes": { "type": "array", "items": { "type": "string" } }
       }
+    },
+    "title": { "type": "string" },
+    "type": { "type": "string" },
+    "created_utc": { "type": "string" },
+    "updated_utc": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "related": { "type": "array", "items": { "type": "string" } },
+    "status": { "type": "string" },
+    "source": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "kind": { "type": "string" },
+        "transcript": { "type": "string" },
+        "audio": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "sample_rate_hz": { "type": "number" },
+            "channels": { "type": "number" },
+            "format": { "type": "string" }
+          }
+        }
+      }
     }
   }
 }

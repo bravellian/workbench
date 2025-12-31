@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public static class LinkUpdater
 {

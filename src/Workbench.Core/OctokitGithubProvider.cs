@@ -1,11 +1,9 @@
 using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Octokit;
 using ProductHeaderValue = Octokit.ProductHeaderValue;
 
-namespace Workbench;
+namespace Workbench.Core;
 
 public sealed class OctokitGithubProvider : IGithubProvider
 {
@@ -40,15 +38,15 @@ public sealed class OctokitGithubProvider : IGithubProvider
 
     public async Task<GithubIssue> FetchIssueAsync(string repoRoot, GithubIssueRef issueRef)
     {
-        await EnsureAuthenticatedAsync(repoRoot, issueRef.Repo.Host).ConfigureAwait(false);
-        var payload = await ExecuteGraphqlAsync(issueRef).ConfigureAwait(false);
+        await this.EnsureAuthenticatedAsync(repoRoot, issueRef.Repo.Host).ConfigureAwait(false);
+        var payload = await this.ExecuteGraphqlAsync(issueRef).ConfigureAwait(false);
         return ParseIssueGraphql(payload, issueRef);
     }
 
     public async Task<IList<GithubIssue>> ListIssuesAsync(string repoRoot, GithubRepoRef repo, int limit = 1000)
     {
-        await EnsureAuthenticatedAsync(repoRoot, repo.Host).ConfigureAwait(false);
-        var client = GetClient(repo.Host);
+        await this.EnsureAuthenticatedAsync(repoRoot, repo.Host).ConfigureAwait(false);
+        var client = this.GetClient(repo.Host);
         var request = new RepositoryIssueRequest
         {
             State = ItemStateFilter.All
@@ -85,8 +83,8 @@ public sealed class OctokitGithubProvider : IGithubProvider
 
     public async Task<string> CreateIssueAsync(string repoRoot, GithubRepoRef repo, string title, string body, IEnumerable<string> labels)
     {
-        await EnsureAuthenticatedAsync(repoRoot, repo.Host).ConfigureAwait(false);
-        var client = GetClient(repo.Host);
+        await this.EnsureAuthenticatedAsync(repoRoot, repo.Host).ConfigureAwait(false);
+        var client = this.GetClient(repo.Host);
         var newIssue = new NewIssue(title)
         {
             Body = body
@@ -102,8 +100,8 @@ public sealed class OctokitGithubProvider : IGithubProvider
 
     public async Task UpdateIssueAsync(string repoRoot, GithubIssueRef issueRef, string title, string body)
     {
-        await EnsureAuthenticatedAsync(repoRoot, issueRef.Repo.Host).ConfigureAwait(false);
-        var client = GetClient(issueRef.Repo.Host);
+        await this.EnsureAuthenticatedAsync(repoRoot, issueRef.Repo.Host).ConfigureAwait(false);
+        var client = this.GetClient(issueRef.Repo.Host);
         var update = new IssueUpdate
         {
             Title = title,
@@ -114,8 +112,8 @@ public sealed class OctokitGithubProvider : IGithubProvider
 
     public async Task<string> CreatePullRequestAsync(string repoRoot, GithubRepoRef repo, string title, string body, string? baseBranch, bool draft)
     {
-        await EnsureAuthenticatedAsync(repoRoot, repo.Host).ConfigureAwait(false);
-        var client = GetClient(repo.Host);
+        await this.EnsureAuthenticatedAsync(repoRoot, repo.Host).ConfigureAwait(false);
+        var client = this.GetClient(repo.Host);
         var head = GitService.GetCurrentBranch(repoRoot);
         var newPr = new NewPullRequest(title, head, baseBranch ?? "main")
         {
@@ -130,12 +128,12 @@ public sealed class OctokitGithubProvider : IGithubProvider
     private GitHubClient GetClient(string? host)
     {
         var normalizedHost = NormalizeHost(host);
-        lock (syncRoot)
+        lock (this.syncRoot)
         {
-            if (!clients.TryGetValue(normalizedHost, out var client))
+            if (!this.clients.TryGetValue(normalizedHost, out var client))
             {
                 client = CreateClient(normalizedHost);
-                clients[normalizedHost] = client;
+                this.clients[normalizedHost] = client;
             }
             return client;
         }
@@ -160,12 +158,12 @@ public sealed class OctokitGithubProvider : IGithubProvider
     private HttpClient GetGraphClient(string? host)
     {
         var normalizedHost = NormalizeHost(host);
-        lock (syncRoot)
+        lock (this.syncRoot)
         {
-            if (!graphClients.TryGetValue(normalizedHost, out var client))
+            if (!this.graphClients.TryGetValue(normalizedHost, out var client))
             {
                 client = CreateGraphClient(normalizedHost);
-                graphClients[normalizedHost] = client;
+                this.graphClients[normalizedHost] = client;
             }
             return client;
         }
@@ -299,7 +297,7 @@ public sealed class OctokitGithubProvider : IGithubProvider
             });
 
         var payload = JsonSerializer.Serialize(request);
-        var client = GetGraphClient(issueRef.Repo.Host);
+        var client = this.GetGraphClient(issueRef.Repo.Host);
         using var content = new StringContent(payload, Encoding.UTF8, "application/json");
         using var response = await client.PostAsync(string.Empty, content).ConfigureAwait(false);
         var responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);

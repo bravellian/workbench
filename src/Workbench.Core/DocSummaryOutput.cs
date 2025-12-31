@@ -1,8 +1,5 @@
-using System.Text.Json.Serialization;
+namespace Workbench.Core;
 
-namespace Workbench
-{
-    public sealed record DocSummaryOutput(
-        [property: JsonPropertyName("ok")] bool Ok,
-        [property: JsonPropertyName("data")] DocSummaryData Data);
-}
+public sealed record DocSummaryOutput(
+    [property: JsonPropertyName("ok")] bool Ok,
+    [property: JsonPropertyName("data")] DocSummaryData Data);
