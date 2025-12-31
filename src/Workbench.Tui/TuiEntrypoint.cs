@@ -1,3 +1,4 @@
+using Terminal.Gui.Graphs;
 using Workbench.Core;
 using Workbench.Core.Voice;
 using Workbench.VoiceViz;
@@ -26,13 +27,19 @@ public static partial class TuiEntrypoint
 
         var config = WorkbenchConfig.Load(repoRoot, out _);
         var allItems = LoadItems(repoRoot, config);
-        var filteredItems = new List<WorkItem>(allItems);
-        var listItemLookup = new List<WorkItem?>();
         StatusBar? statusBar = null;
         ColorScheme? defaultScheme = null;
         var workItemStatusOptions = new[] { "all", "draft", "ready", "in-progress", "blocked", "done", "dropped" };
         var workItemTypeOptions = new[] { "task", "bug", "spike" };
         var docTypeOptions = new[] { "spec", "adr", "doc", "runbook", "guide" };
+        var context = new TuiContext(repoRoot, config, allItems, workItemStatusOptions, workItemTypeOptions, docTypeOptions)
+        {
+            StatusBar = statusBar,
+            DefaultScheme = defaultScheme
+        };
+        var filteredItems = context.FilteredItems;
+        var listItemLookup = context.ListItemLookup;
+        var linkTargets = context.LinkTargets;
 
         Application.Init();
         try
@@ -43,6 +50,7 @@ public static partial class TuiEntrypoint
                 Normal = Application.Driver.MakeAttribute(Color.Black, Color.White),
                 Focus = Application.Driver.MakeAttribute(Color.Black, Color.White)
             };
+            context.InputScheme = inputScheme;
             var window = new Window("Workbench TUI")
             {
                 X = 0,
@@ -56,7 +64,7 @@ public static partial class TuiEntrypoint
                 X = 0,
                 Y = 0,
                 Width = Dim.Fill(),
-                Height = Dim.Fill(2)
+                Height = Dim.Fill(1)
             };
 
             var navFrame = new FrameView("Work Items")
@@ -80,7 +88,7 @@ public static partial class TuiEntrypoint
                 X = 0,
                 Y = Pos.Bottom(tabView),
                 Width = Dim.Fill(),
-                Height = 2
+                Height = 1
             };
 
             var filterLabel = new Label("Filter:")
@@ -128,37 +136,61 @@ public static partial class TuiEntrypoint
                 Width = Dim.Fill(),
                 Height = 8
             };
-
-            var linkTargets = new List<string>();
-            var linksList = new ListView(new List<string>())
+            var startWorkButton = new Button("Start work")
             {
-                X = 0,
-                Y = Pos.Bottom(detailsHeader) + 1,
-                Width = Dim.Fill(),
-                Height = Dim.Fill()
+                X = 1,
+                Y = Pos.Bottom(detailsHeader)
             };
+            startWorkButton.Enabled = false;
 
             var linkTypeLabel = new Label("Links:")
             {
                 X = 1,
-                Y = Pos.Bottom(detailsHeader)
+                Y = Pos.Bottom(startWorkButton)
+            };
+
+            var linksList = new ListView(new List<string>())
+            {
+                X = 0,
+                Y = Pos.Bottom(linkTypeLabel) + 1,
+                Width = Dim.Fill(),
+                Height = 6
             };
 
             var linkTypeField = new TextField("all")
             {
                 X = Pos.Right(linkTypeLabel) + 1,
-                Y = Pos.Bottom(detailsHeader),
+                Y = Pos.Bottom(startWorkButton),
                 Width = 12
             };
 
             var linkHint = new Label(string.Empty)
             {
                 X = Pos.Right(linkTypeField) + 2,
-                Y = Pos.Bottom(detailsHeader),
+                Y = Pos.Bottom(startWorkButton),
                 Width = Dim.Fill()
             };
 
-            var dryRunEnabled = false;
+            var detailsDivider = new LineView(Orientation.Horizontal)
+            {
+                X = 1,
+                Y = Pos.Bottom(linksList),
+                Width = Dim.Fill(2),
+                Height = 1
+            };
+
+            var detailsBody = new TextView
+            {
+                X = 1,
+                Y = Pos.Bottom(detailsDivider) + 1,
+                Width = Dim.Fill(2),
+                Height = Dim.Fill(),
+                ReadOnly = true,
+                WordWrap = true
+            };
+            detailsBody.ColorScheme = detailsFrame.ColorScheme;
+
+            context.DryRunEnabled = false;
             var dryRunLabel = new Label("Dry-run: OFF")
             {
                 X = 1,
@@ -170,227 +202,16 @@ public static partial class TuiEntrypoint
                 X = 16,
                 Y = 0
             };
+            context.DryRunLabel = dryRunLabel;
+            context.CommandPreviewLabel = commandPreviewLabel;
+            context.FilterField = filterField;
+            context.StatusField = statusField;
+            context.ListView = listView;
+            context.DetailsHeader = detailsHeader;
+            context.LinksList = linksList;
+            context.LinkTypeField = linkTypeField;
+            context.LinkHint = linkHint;
 
-            void SetCommandPreview(string command)
-            {
-                var prefix = dryRunEnabled ? "DRY-RUN: " : string.Empty;
-                commandPreviewLabel.Text = $"{prefix}Command: {command}";
-            }
-
-            void ShowError(Exception ex)
-            {
-                MessageBox.ErrorQuery("Error", ex.Message, "Ok");
-            }
-
-            void ShowInfo(string message)
-            {
-                MessageBox.Query("Info", message, "Ok");
-            }
-
-            bool EnsureSettingsFile(string path, string displayName, string defaultContent)
-            {
-                if (File.Exists(path))
-                {
-                    return true;
-                }
-
-                var choice = MessageBox.Query(
-                    "Create file",
-                    $"{displayName} not found. Create it in the current repo?",
-                    "Create",
-                    "Cancel");
-                if (choice != 0)
-                {
-                    return false;
-                }
-
-                var directory = Path.GetDirectoryName(path);
-                if (!string.IsNullOrWhiteSpace(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                File.WriteAllText(path, defaultContent);
-                return true;
-            }
-
-            static bool TryParseEnvLine(string rawLine, out string key, out string value)
-            {
-                key = string.Empty;
-                value = string.Empty;
-
-                var line = rawLine.Trim();
-                if (line.Length == 0 || line.StartsWith('#'))
-                {
-                    return false;
-                }
-
-                if (line.StartsWith("export ", StringComparison.Ordinal))
-                {
-                    line = line[7..].TrimStart();
-                }
-
-                var separator = line.IndexOf('=');
-                if (separator <= 0)
-                {
-                    return false;
-                }
-
-                key = line[..separator].Trim();
-                if (key.Length == 0)
-                {
-                    return false;
-                }
-
-                value = line[(separator + 1)..].Trim();
-                if (value.Length >= 2)
-                {
-                    var first = value[0];
-                    var last = value[^1];
-                    if ((first == '"' && last == '"') || (first == '\'' && last == '\''))
-                    {
-                        value = value[1..^1];
-                    }
-                }
-
-                return true;
-            }
-
-            static string? GetEnvValue(IEnumerable<string> lines, string key)
-            {
-                foreach (var line in lines)
-                {
-                    if (!TryParseEnvLine(line, out var parsedKey, out var parsedValue))
-                    {
-                        continue;
-                    }
-                    if (string.Equals(parsedKey, key, StringComparison.Ordinal))
-                    {
-                        return parsedValue;
-                    }
-                }
-
-                return null;
-            }
-
-            static void SetEnvValue(List<string> lines, string key, string? value)
-            {
-                var hasValue = !string.IsNullOrWhiteSpace(value);
-                for (var i = lines.Count - 1; i >= 0; i--)
-                {
-                    if (!TryParseEnvLine(lines[i], out var parsedKey, out _))
-                    {
-                        continue;
-                    }
-                    if (!string.Equals(parsedKey, key, StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    if (!hasValue)
-                    {
-                        lines.RemoveAt(i);
-                    }
-                    else
-                    {
-                        lines[i] = $"{key}={value}";
-                    }
-                    return;
-                }
-
-                if (hasValue)
-                {
-                    lines.Add($"{key}={value}");
-                }
-            }
-
-            int GetStatusRank(string? status)
-            {
-                return status?.ToLowerInvariant() switch
-                {
-                    "in-progress" => 0,
-                    "blocked" => 1,
-                    "ready" => 2,
-                    "draft" => 3,
-                    "done" => 4,
-                    "dropped" => 5,
-                    _ => 6
-                };
-            }
-
-            int GetPriorityRank(string? priority)
-            {
-                return priority?.ToLowerInvariant() switch
-                {
-                    "critical" => 0,
-                    "high" => 1,
-                    "medium" => 2,
-                    "low" => 3,
-                    _ => 4
-                };
-            }
-
-            string FormatStatusLabel(string? status, bool useEmoji)
-            {
-                if (string.IsNullOrWhiteSpace(status))
-                {
-                    return useEmoji ? "❔ unknown" : "??";
-                }
-
-                if (!useEmoji)
-                {
-                    return status.ToLowerInvariant() switch
-                    {
-                        "draft" => "..",
-                        "ready" => "->",
-                        "in-progress" => ">>",
-                        "blocked" => "!!",
-                        "done" => "##",
-                        "dropped" => "--",
-                        _ => "??"
-                    };
-                }
-
-                return status.ToLowerInvariant() switch
-                {
-                    "draft" => "🟡 draft",
-                    "ready" => "🟢 ready",
-                    "in-progress" => "🔵 in-progress",
-                    "blocked" => "🟥 blocked",
-                    "done" => "✅ done",
-                    "dropped" => "⚪ dropped",
-                    _ => status
-                };
-            }
-
-            string FormatPriorityLabel(string? priority, bool useEmoji)
-            {
-                if (string.IsNullOrWhiteSpace(priority))
-                {
-                    return "-";
-                }
-
-                if (!useEmoji)
-                {
-                    return priority.ToLowerInvariant() switch
-                    {
-                        "critical" => "!!!!",
-                        "high" => "!!!",
-                        "medium" => "!!",
-                        "low" => "!",
-                        _ => "?"
-                    };
-                }
-
-                return priority.ToLowerInvariant() switch
-                {
-                    "critical" => "🔴 critical",
-                    "high" => "🟠 high",
-                    "medium" => "🟡 medium",
-                    "low" => "🟢 low",
-                    _ => priority
-                };
-            }
 
             void ShowDocPreviewDialog(string path, string resolvedPath, string content)
             {
@@ -413,7 +234,7 @@ public static partial class TuiEntrypoint
 
                 void OpenExternal()
                 {
-                    SetCommandPreview($"open \"{resolvedPath}\"");
+                    SetCommandPreview(context, $"open \"{resolvedPath}\"");
                     try
                     {
                         var psi = new ProcessStartInfo
@@ -483,7 +304,7 @@ public static partial class TuiEntrypoint
                 try
                 {
                     var content = File.ReadAllText(resolved);
-                    SetCommandPreview($"preview \"{resolved}\"");
+                    SetCommandPreview(context, $"preview \"{resolved}\"");
                     ShowDocPreviewDialog(trimmedLink, resolved, content);
                     return true;
                 }
@@ -494,76 +315,6 @@ public static partial class TuiEntrypoint
                 }
             }
 
-            int FindOptionIndex(IReadOnlyList<string> options, string? current)
-            {
-                if (string.IsNullOrWhiteSpace(current))
-                {
-                    return -1;
-                }
-
-                for (var i = 0; i < options.Count; i++)
-                {
-                    if (string.Equals(options[i], current, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return i;
-                    }
-                }
-
-                return -1;
-            }
-
-            string? ShowPickDialog(string title, IReadOnlyList<string> options, string? current)
-            {
-                var optionList = options.ToList();
-                var dialog = new Dialog(title, 40, 14);
-                var list = new ListView(optionList)
-                {
-                    X = 1,
-                    Y = 1,
-                    Width = Dim.Fill(2),
-                    Height = Dim.Fill(3)
-                };
-                var selectedIndex = FindOptionIndex(optionList, current);
-                if (selectedIndex >= 0)
-                {
-                    list.SelectedItem = selectedIndex;
-                }
-                dialog.Add(list);
-
-                var confirmed = false;
-                var cancelButton = new Button("Cancel");
-                var selectButton = new Button("Select");
-                cancelButton.Clicked += () => Application.RequestStop();
-                selectButton.Clicked += () =>
-                {
-                    confirmed = true;
-                    Application.RequestStop();
-                };
-                dialog.AddButton(cancelButton);
-                dialog.AddButton(selectButton);
-
-                Application.Run(dialog);
-                if (!confirmed || list.SelectedItem < 0 || list.SelectedItem >= optionList.Count)
-                {
-                    return null;
-                }
-
-                return optionList[list.SelectedItem];
-            }
-
-            Button CreatePickerButton(TextField field, IReadOnlyList<string> options, string title)
-            {
-                var button = new Button("Pick");
-                button.Clicked += () =>
-                {
-                    var selection = ShowPickDialog(title, options, field.Text?.ToString());
-                    if (!string.IsNullOrWhiteSpace(selection))
-                    {
-                        field.Text = selection;
-                    }
-                };
-                return button;
-            }
 
             WorkItem? GetSelectedItem()
             {
@@ -573,6 +324,14 @@ public static partial class TuiEntrypoint
                 }
 
                 return listItemLookup[listView.SelectedItem];
+            }
+
+            string ApplyPattern(string pattern, WorkItem item)
+            {
+                return pattern
+                    .Replace("{id}", item.Id, StringComparison.Ordinal)
+                    .Replace("{slug}", item.Slug, StringComparison.Ordinal)
+                    .Replace("{title}", item.Title, StringComparison.Ordinal);
             }
 
             int FindNextItemIndex(int startIndex)
@@ -601,10 +360,12 @@ public static partial class TuiEntrypoint
                 if (index < 0 || index >= listItemLookup.Count)
                 {
                     detailsHeader.Text = "Select a work item to see details.";
+                    detailsBody.Text = string.Empty;
                     linkTargets.Clear();
-                    linksList.SetSource(new List<string>());
-                    linkHint.Text = string.Empty;
-                    SetCommandPreview("(none)");
+                    linksList!.SetSource(new List<string>());
+                    linkHint!.Text = string.Empty;
+                    SetCommandPreview(context, "(none)");
+                    startWorkButton.Enabled = false;
                     return;
                 }
 
@@ -612,10 +373,12 @@ public static partial class TuiEntrypoint
                 if (item is null)
                 {
                     detailsHeader.Text = "Select a work item to see details.";
+                    detailsBody.Text = string.Empty;
                     linkTargets.Clear();
-                    linksList.SetSource(new List<string>());
-                    linkHint.Text = string.Empty;
-                    SetCommandPreview("(none)");
+                    linksList!.SetSource(new List<string>());
+                    linkHint!.Text = string.Empty;
+                    SetCommandPreview(context, "(none)");
+                    startWorkButton.Enabled = false;
                     return;
                 }
                 var specsCount = item.Related.Specs.Count;
@@ -625,9 +388,11 @@ public static partial class TuiEntrypoint
                 var prsCount = item.Related.Prs.Count;
 
                 detailsHeader.Text = $"[{item.Status}] {item.Id}\n{item.Title}\n\nOwner: {item.Owner ?? "?"}\nPriority: {item.Priority ?? "?"}\nUpdated: {item.Updated ?? "?"}\n\nLinked: specs {specsCount}, adrs {adrsCount}, files {filesCount}\nIssues: {issuesCount}, PRs: {prsCount}\n\nEnter: open selected link";
-                SetCommandPreview($"workbench item show {item.Id}");
+                detailsBody.Text = item.Body;
+                SetCommandPreview(context, $"workbench item show {item.Id}");
+                startWorkButton.Enabled = true;
 
-                PopulateLinks(item, linkTypeField, linkHint, linksList, linkTargets);
+                PopulateLinks(item, linkTypeField!, linkHint!, linksList!, linkTargets);
             }
 
             void ApplyFilters()
@@ -694,10 +459,25 @@ public static partial class TuiEntrypoint
             void ReloadItems()
             {
                 allItems = LoadItems(repoRoot, config);
+                context.AllItems = allItems;
                 ApplyFilters();
             }
 
+            void SelectItemById(string id)
+            {
+                for (var i = 0; i < listItemLookup.Count; i++)
+                {
+                    if (listItemLookup[i] is { } entry && entry.Id.Equals(id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        listView.SelectedItem = i;
+                        UpdateDetails(i);
+                        return;
+                    }
+                }
+            }
+
             var docsAll = LoadDocs(repoRoot, config);
+            context.DocsAll = docsAll;
             var docsFilterLabel = new Label("Filter:")
             {
                 X = 1,
@@ -736,13 +516,17 @@ public static partial class TuiEntrypoint
                 Y = 0,
                 Width = Dim.Fill()
             };
+            context.DocsFilterField = docsFilterField;
+            context.DocsTree = docsTree;
+            context.DocsPreview = docsPreview;
+            context.DocsPreviewHeader = docsPreviewHeader;
 
             var configPath = WorkbenchConfig.GetConfigPath(repoRoot);
             var credentialsPath = Path.Combine(repoRoot, ".workbench", "credentials.env");
             var defaultConfigJson = JsonSerializer.Serialize(
                 WorkbenchConfig.Default,
                 WorkbenchJsonContext.Default.WorkbenchConfig);
-            var settingsLoaded = false;
+            context.SettingsLoaded = false;
             var githubProviderOptions = new[] { "octokit", "gh" };
             var aiProviderOptions = new[] { "openai", "none" };
             var themeOptions = new[]
@@ -765,6 +549,13 @@ public static partial class TuiEntrypoint
                 Height = Dim.Fill(),
                 ShowVerticalScrollIndicator = true
             };
+            context.SettingsScroll = settingsScroll;
+            context.ConfigPath = configPath;
+            context.CredentialsPath = credentialsPath;
+            context.DefaultConfigJson = defaultConfigJson;
+            context.ThemeOptions = themeOptions;
+            context.GithubProviderOptions = githubProviderOptions;
+            context.AiProviderOptions = aiProviderOptions;
 
             var docsRootField = new TextField(string.Empty);
             var workRootField = new TextField(string.Empty);
@@ -775,16 +566,33 @@ public static partial class TuiEntrypoint
             var themeField = new TextField("default");
             var themePickButton = CreatePickerButton(themeField, themeOptions, "Theme");
             var useEmojiCheck = new CheckBox("Use emoji labels");
+            context.DocsRootField = docsRootField;
+            context.WorkRootField = workRootField;
+            context.ItemsDirField = itemsDirField;
+            context.DoneDirField = doneDirField;
+            context.TemplatesDirField = templatesDirField;
+            context.WorkboardFileField = workboardFileField;
+            context.ThemeField = themeField;
+            context.ThemePickButton = themePickButton;
+            context.UseEmojiCheck = useEmojiCheck;
 
             var idWidthField = new TextField(string.Empty);
             var bugPrefixField = new TextField(string.Empty);
             var taskPrefixField = new TextField(string.Empty);
             var spikePrefixField = new TextField(string.Empty);
+            context.IdWidthField = idWidthField;
+            context.BugPrefixField = bugPrefixField;
+            context.TaskPrefixField = taskPrefixField;
+            context.SpikePrefixField = spikePrefixField;
 
             var gitBranchPatternField = new TextField(string.Empty);
             var gitCommitPatternField = new TextField(string.Empty);
             var gitBaseBranchField = new TextField(string.Empty);
             var gitRequireCleanCheck = new CheckBox("Require clean working tree");
+            context.GitBranchPatternField = gitBranchPatternField;
+            context.GitCommitPatternField = gitCommitPatternField;
+            context.GitBaseBranchField = gitBaseBranchField;
+            context.GitRequireCleanCheck = gitRequireCleanCheck;
 
             var githubProviderField = new TextField(string.Empty);
             var githubProviderPickButton = CreatePickerButton(githubProviderField, githubProviderOptions, "GitHub provider");
@@ -792,15 +600,28 @@ public static partial class TuiEntrypoint
             var githubHostField = new TextField(string.Empty);
             var githubOwnerField = new TextField(string.Empty);
             var githubRepoField = new TextField(string.Empty);
+            context.GithubProviderField = githubProviderField;
+            context.GithubProviderPickButton = githubProviderPickButton;
+            context.GithubDefaultDraftCheck = githubDefaultDraftCheck;
+            context.GithubHostField = githubHostField;
+            context.GithubOwnerField = githubOwnerField;
+            context.GithubRepoField = githubRepoField;
 
             var linkExcludeField = new TextField(string.Empty);
             var docExcludeField = new TextField(string.Empty);
+            context.LinkExcludeField = linkExcludeField;
+            context.DocExcludeField = docExcludeField;
 
             var aiProviderField = new TextField("openai");
             var aiProviderPickButton = CreatePickerButton(aiProviderField, aiProviderOptions, "AI provider");
             var aiOpenAiKeyField = new TextField(string.Empty) { Secret = true };
             var aiModelField = new TextField(string.Empty);
             var githubTokenField = new TextField(string.Empty) { Secret = true };
+            context.AiProviderField = aiProviderField;
+            context.AiProviderPickButton = aiProviderPickButton;
+            context.AiOpenAiKeyField = aiOpenAiKeyField;
+            context.AiModelField = aiModelField;
+            context.GithubTokenField = githubTokenField;
 
             int AddFieldRow(ScrollView view, string label, TextField field, int y, int labelWidth, int fieldWidth)
             {
@@ -883,7 +704,7 @@ public static partial class TuiEntrypoint
                     githubTokenField.Text = GetEnvValue(envLines, "WORKBENCH_GITHUB_TOKEN") ?? string.Empty;
                 }
 
-                settingsLoaded = true;
+                context.SettingsLoaded = true;
             }
 
             void SaveConfigFromFields()
@@ -947,8 +768,12 @@ public static partial class TuiEntrypoint
                 {
                     ConfigService.SaveConfig(repoRoot, updated);
                     config = updated;
+                    context.Config = updated;
                     ReloadItems();
                     docsAll = LoadDocs(repoRoot, config);
+                    context.DocsAll = docsAll;
+                    context.DocsAll = docsAll;
+                    context.DocsAll = docsAll;
                     ApplyDocsFilter();
                     ApplyTheme(config.Tui.Theme);
                     ShowInfo("Config saved.");
@@ -1045,7 +870,7 @@ public static partial class TuiEntrypoint
             saveConfigButton.Clicked += () => SaveConfigFromFields();
             reloadConfigButton.Clicked += () =>
             {
-                settingsLoaded = false;
+                context.SettingsLoaded = false;
                 LoadSettingsFields();
             };
             settingsScroll.Add(saveConfigButton, reloadConfigButton);
@@ -1073,7 +898,7 @@ public static partial class TuiEntrypoint
             saveCredsButton.Clicked += () => SaveCredentialsFromFields();
             reloadCredsButton.Clicked += () =>
             {
-                settingsLoaded = false;
+                context.SettingsLoaded = false;
                 LoadSettingsFields();
             };
             settingsScroll.Add(saveCredsButton, reloadCredsButton);
@@ -1094,7 +919,7 @@ public static partial class TuiEntrypoint
                 docsTree.AddObjects(roots);
             }
 
-            void OpenSelectedItem()
+            void ShowStartWorkDialog()
             {
                 var item = GetSelectedItem();
                 if (item is null)
@@ -1103,159 +928,169 @@ public static partial class TuiEntrypoint
                     return;
                 }
 
-                SetCommandPreview($"open \"{item.Path}\"");
+                if (context.Config.Git.RequireCleanWorkingTree && !GitService.IsClean(repoRoot))
+                {
+                    ShowInfo("Working tree is not clean.");
+                    return;
+                }
+
+                var branch = ApplyPattern(context.Config.Git.BranchPattern, item);
+                var pushCheck = new CheckBox("Push branch to origin") { X = 1, Y = 1, Checked = false };
+                var prCheck = new CheckBox("Create pull request") { X = 1, Y = 2, Checked = false };
+                var draftCheck = new CheckBox("Draft PR") { X = 4, Y = 3, Checked = context.Config.Github.DefaultDraft };
+                var baseBranchLabel = new Label("Base branch (optional):") { X = 1, Y = 4 };
+                var baseBranchField = new TextField(string.Empty) { X = 26, Y = 4, Width = 20 };
+                var previewLabel = new Label("Command: (none)") { X = 1, Y = 6, Width = Dim.Fill(2) };
+
+                var dialog = new Dialog("Start work", 70, 14)
+                {
+                    ColorScheme = Colors.Dialog
+                };
+                dialog.Add(
+                    new Label($"Item: {item.Id} {item.Title}") { X = 1, Y = 0 },
+                    pushCheck,
+                    prCheck,
+                    draftCheck,
+                    baseBranchLabel,
+                    baseBranchField,
+                    previewLabel);
+
+                void UpdatePreview()
+                {
+                    var command = $"start work {item.Id} (branch {branch})";
+                    if (pushCheck.Checked)
+                    {
+                        command += " + push";
+                    }
+                    if (prCheck.Checked)
+                    {
+                        command += " + pr";
+                    }
+                    if (prCheck.Checked && draftCheck.Checked)
+                    {
+                        command += " (draft)";
+                    }
+                    var baseBranch = baseBranchField.Text?.ToString();
+                    if (prCheck.Checked && !string.IsNullOrWhiteSpace(baseBranch))
+                    {
+                        command += $" base {baseBranch}";
+                    }
+                    if (context.DryRunEnabled)
+                    {
+                        command += " --dry-run";
+                    }
+                    previewLabel.Text = $"Command: {command}";
+                    SetCommandPreview(context, command);
+                }
+
+                pushCheck.Toggled += _ => UpdatePreview();
+                prCheck.Toggled += _ => UpdatePreview();
+                draftCheck.Toggled += _ => UpdatePreview();
+                baseBranchField.TextChanged += _ => UpdatePreview();
+                UpdatePreview();
+
+                var confirmed = false;
+                var cancelButton = new Button("Cancel");
+                var startButton = new Button("Start");
+                cancelButton.Clicked += () => Application.RequestStop();
+                startButton.Clicked += () =>
+                {
+                    confirmed = true;
+                    Application.RequestStop();
+                };
+                dialog.AddButton(cancelButton);
+                dialog.AddButton(startButton);
+
+                Application.Run(dialog);
+                if (!confirmed)
+                {
+                    return;
+                }
+
+                if (context.DryRunEnabled)
+                {
+                    ShowInfo("Dry-run enabled; no files were changed.");
+                    return;
+                }
+
+                var shouldPush = pushCheck.Checked || prCheck.Checked;
+                var baseBranch = baseBranchField.Text?.ToString();
+                var useDraft = draftCheck.Checked;
+
                 try
                 {
-                    var psi = new ProcessStartInfo
+                    var startBranch = ApplyPattern(context.Config.Git.BranchPattern, item);
+                    if (GitService.BranchExists(repoRoot, startBranch))
                     {
-                        FileName = item.Path,
-                        UseShellExecute = true
-                    };
-                    Process.Start(psi);
+                        var choice = MessageBox.Query(
+                            "Branch exists",
+                            $"Branch '{startBranch}' already exists. Checkout it?",
+                            "Checkout",
+                            "Cancel");
+                        if (choice != 0)
+                        {
+                            return;
+                        }
+
+                        var checkout = GitService.Run(repoRoot, "checkout", startBranch);
+                        if (checkout.ExitCode != 0)
+                        {
+                            throw new InvalidOperationException(checkout.StdErr.Length > 0 ? checkout.StdErr : "git checkout failed.");
+                        }
+                    }
+                    else
+                    {
+                        GitService.CheckoutNewBranch(repoRoot, startBranch);
+                    }
+
+                    var updated = WorkItemService.UpdateStatus(item.Path, "in-progress", note: null);
+                    GitService.Add(repoRoot, updated.Path);
+                    var commitMessage = $"Start {updated.Id}: {updated.Title}";
+                    GitService.Commit(repoRoot, commitMessage);
+
+                    if (shouldPush)
+                    {
+                        GitService.Push(repoRoot, startBranch);
+                    }
+
+                    string? prUrl = null;
+                    if (prCheck.Checked)
+                    {
+                        var prTitle = $"{updated.Id}: {updated.Title}";
+                        var prBody = PullRequestBuilder.BuildBody(updated);
+                        var prRepo = GithubService.ResolveRepo(repoRoot, context.Config);
+                        var baseTarget = string.IsNullOrWhiteSpace(baseBranch) ? context.Config.Git.DefaultBaseBranch : baseBranch;
+                        prUrl = RunWithBusyDialog(
+                            "Creating PR",
+                            "Creating pull request...",
+                            () => GithubService.CreatePullRequestAsync(repoRoot, context.Config, prRepo, prTitle, prBody, baseTarget, useDraft));
+                        if (!string.IsNullOrWhiteSpace(prUrl))
+                        {
+                            WorkItemService.AddPrLink(updated.Path, prUrl);
+                        }
+                    }
+
+                    ReloadItems();
+                    SelectItemById(updated.Id);
+
+                    var summary = $"{updated.Id} started on {startBranch}.";
+                    if (!string.IsNullOrWhiteSpace(prUrl))
+                    {
+                        summary += $" PR: {prUrl}";
+                    }
+                    ShowInfo(summary);
                 }
                 catch (Exception ex)
                 {
                     ShowError(ex);
                 }
             }
+
+            startWorkButton.Clicked += ShowStartWorkDialog;
 
             void ActivateSelectedDoc()
             {
                 docsTree.ActivateSelectedObjectIfAny();
-            }
-
-            void OpenLinkedDocs()
-            {
-                var item = GetSelectedItem();
-                if (item is null)
-                {
-                    ShowInfo("Select a work item first.");
-                    return;
-                }
-
-                var links = item.Related.Specs
-                    .Concat(item.Related.Adrs)
-                    .Concat(item.Related.Files)
-                    .Where(link => !string.IsNullOrWhiteSpace(link))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                if (links.Count == 0)
-                {
-                    ShowInfo("No linked docs or files.");
-                    return;
-                }
-
-                var dialog = new Dialog("Open linked doc", 70, 18);
-                var list = new ListView(links)
-                {
-                    X = 1,
-                    Y = 1,
-                    Width = Dim.Fill(2),
-                    Height = Dim.Fill(2)
-                };
-                dialog.Add(list);
-
-                var confirmed = false;
-                var cancelButton = new Button("Cancel");
-                var openButton = new Button("Open");
-                cancelButton.Clicked += () => Application.RequestStop();
-                openButton.Clicked += () =>
-                {
-                    confirmed = true;
-                    Application.RequestStop();
-                };
-                dialog.AddButton(cancelButton);
-                dialog.AddButton(openButton);
-
-                Application.Run(dialog);
-                if (!confirmed || list.SelectedItem < 0 || list.SelectedItem >= links.Count)
-                {
-                    return;
-                }
-
-                var link = links[list.SelectedItem];
-                var resolved = ResolveLink(repoRoot, link);
-                SetCommandPreview($"open \"{resolved}\"");
-                try
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = resolved,
-                        UseShellExecute = true
-                    };
-                    Process.Start(psi);
-                }
-                catch (Exception ex)
-                {
-                    ShowError(ex);
-                }
-            }
-
-            void OpenLinkedIssues()
-            {
-                var item = GetSelectedItem();
-                if (item is null)
-                {
-                    ShowInfo("Select a work item first.");
-                    return;
-                }
-
-                var links = item.Related.Issues
-                    .Concat(item.Related.Prs)
-                    .Where(link => !string.IsNullOrWhiteSpace(link))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                if (links.Count == 0)
-                {
-                    ShowInfo("No linked issues or PRs.");
-                    return;
-                }
-
-                var dialog = new Dialog("Open issue/PR", 70, 18);
-                var list = new ListView(links)
-                {
-                    X = 1,
-                    Y = 1,
-                    Width = Dim.Fill(2),
-                    Height = Dim.Fill(2)
-                };
-                dialog.Add(list);
-
-                var confirmed = false;
-                var cancelButton = new Button("Cancel");
-                var openButton = new Button("Open");
-                cancelButton.Clicked += () => Application.RequestStop();
-                openButton.Clicked += () =>
-                {
-                    confirmed = true;
-                    Application.RequestStop();
-                };
-                dialog.AddButton(cancelButton);
-                dialog.AddButton(openButton);
-
-                Application.Run(dialog);
-                if (!confirmed || list.SelectedItem < 0 || list.SelectedItem >= links.Count)
-                {
-                    return;
-                }
-
-                var link = links[list.SelectedItem];
-                SetCommandPreview($"open \"{link}\"");
-                try
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = link,
-                        UseShellExecute = true
-                    };
-                    Process.Start(psi);
-                }
-                catch (Exception ex)
-                {
-                    ShowError(ex);
-                }
             }
 
             void ShowSyncDialog()
@@ -1298,12 +1133,12 @@ public static partial class TuiEntrypoint
                     {
                         command += " --workboard false";
                     }
-                    if (dryRunEnabled)
+                    if (context.DryRunEnabled)
                     {
                         command += " --dry-run";
                     }
                     previewLabel.Text = $"Command: {command}";
-                    SetCommandPreview(command);
+                    SetCommandPreview(context, command);
                 }
 
                 includeDoneCheck.Toggled += _ => UpdatePreview();
@@ -1357,11 +1192,11 @@ public static partial class TuiEntrypoint
                 {
                     command += " --workboard false";
                 }
-                if (dryRunEnabled)
+                if (context.DryRunEnabled)
                 {
                     command += " --dry-run";
                 }
-                SetCommandPreview(command);
+                SetCommandPreview(context, command);
 
                 try
                 {
@@ -1372,10 +1207,10 @@ public static partial class TuiEntrypoint
                             syncIssues,
                             force,
                             workboard,
-                            dryRunEnabled)
+                            context.DryRunEnabled)
                         .ConfigureAwait(false);
                     var summary = $"Docs: {result.DocsUpdated}, Items: {result.ItemsUpdated}, Index: {result.IndexFilesUpdated}, Workboard: {result.WorkboardUpdated}";
-                    if (dryRunEnabled)
+                    if (context.DryRunEnabled)
                     {
                         summary = $"Dry-run: {summary}";
                     }
@@ -1420,7 +1255,7 @@ public static partial class TuiEntrypoint
                         command += " --link-exclude <...>";
                     }
                     previewLabel.Text = $"Command: {command}";
-                    SetCommandPreview(command);
+                    SetCommandPreview(context, command);
                 }
 
                 skipDocSchemaCheck.Toggled += _ => UpdatePreview();
@@ -1469,8 +1304,8 @@ public static partial class TuiEntrypoint
 
             void ToggleDryRun()
             {
-                dryRunEnabled = !dryRunEnabled;
-                dryRunLabel.Text = dryRunEnabled ? "Dry-run: ON" : "Dry-run: OFF";
+                context.DryRunEnabled = !context.DryRunEnabled;
+                dryRunLabel.Text = context.DryRunEnabled ? "Dry-run: ON" : "Dry-run: OFF";
                 UpdateDetails(listView.SelectedItem);
             }
 
@@ -1853,6 +1688,7 @@ public static partial class TuiEntrypoint
                     WorkItemService.ApplyDraft(created.Path, draft);
 
                     allItems = LoadItems(repoRoot, config);
+                    context.AllItems = allItems;
                     filteredItems.Clear();
                     filteredItems.AddRange(allItems);
                     ApplyFilters();
@@ -2197,12 +2033,12 @@ public static partial class TuiEntrypoint
                     {
                         command += $" --owner {owner}";
                     }
-                    if (dryRunEnabled)
+                    if (context.DryRunEnabled)
                     {
                         command += " --dry-run";
                     }
                     previewLabel.Text = $"Command: {command}";
-                    SetCommandPreview(command);
+                    SetCommandPreview(context, command);
                 }
 
                 typeField.TextChanged += _ => UpdatePreview();
@@ -2231,7 +2067,7 @@ public static partial class TuiEntrypoint
                     return;
                 }
 
-                if (dryRunEnabled)
+                if (context.DryRunEnabled)
                 {
                     ShowInfo("Dry-run enabled; no files were changed.");
                     return;
@@ -2308,12 +2144,12 @@ public static partial class TuiEntrypoint
                     {
                         command += $" --note \"{note}\"";
                     }
-                    if (dryRunEnabled)
+                    if (context.DryRunEnabled)
                     {
                         command += " --dry-run";
                     }
                     previewLabel.Text = $"Command: {command}";
-                    SetCommandPreview(command);
+                    SetCommandPreview(context, command);
                 }
 
                 statusFieldInput.TextChanged += _ => UpdatePreview();
@@ -2336,7 +2172,7 @@ public static partial class TuiEntrypoint
                     return;
                 }
 
-                if (dryRunEnabled)
+                if (context.DryRunEnabled)
                 {
                     ShowInfo("Dry-run enabled; no files were changed.");
                     return;
@@ -2410,12 +2246,12 @@ public static partial class TuiEntrypoint
                     {
                         command += $" --path \"{path}\"";
                     }
-                    if (dryRunEnabled)
+                    if (context.DryRunEnabled)
                     {
                         command += " --dry-run";
                     }
                     previewLabel.Text = $"Command: {command}";
-                    SetCommandPreview(command);
+                    SetCommandPreview(context, command);
                 }
 
                 typeField.TextChanged += _ => UpdatePreview();
@@ -2452,7 +2288,7 @@ public static partial class TuiEntrypoint
                     return;
                 }
 
-                if (dryRunEnabled)
+                if (context.DryRunEnabled)
                 {
                     ShowInfo("Dry-run enabled; no files were changed.");
                     return;
@@ -2519,7 +2355,7 @@ public static partial class TuiEntrypoint
                         command += $" --path \"{path}\"";
                     }
                     previewLabel.Text = $"Command: {command}";
-                    SetCommandPreview(command);
+                    SetCommandPreview(context, command);
                 }
 
                 typeField.TextChanged += _ => UpdatePreview();
@@ -2556,7 +2392,7 @@ public static partial class TuiEntrypoint
                     return;
                 }
 
-                if (dryRunEnabled)
+                if (context.DryRunEnabled)
                 {
                     ShowInfo("Dry-run enabled; no files were changed.");
                     return;
@@ -2599,6 +2435,9 @@ public static partial class TuiEntrypoint
 
             navFrame.Add(filterLabel, filterField, statusLabel, statusField, statusPickButton, listView);
             detailsFrame.Add(detailsHeader);
+            detailsFrame.Add(startWorkButton);
+            detailsFrame.Add(detailsBody);
+            detailsFrame.Add(detailsDivider);
             detailsFrame.Add(linkTypeLabel);
             detailsFrame.Add(linkTypeField);
             detailsFrame.Add(linkHint);
@@ -2625,6 +2464,8 @@ public static partial class TuiEntrypoint
             top.Add(statusBar);
 
             defaultScheme = top.ColorScheme ?? Colors.Base;
+            context.StatusBar = statusBar;
+            context.DefaultScheme = defaultScheme;
 
             void ApplyTheme(string? themeName)
             {
@@ -2654,6 +2495,18 @@ public static partial class TuiEntrypoint
                         HotNormal = Application.Driver.MakeAttribute(hotNormalFg, hotNormalBg),
                         HotFocus = Application.Driver.MakeAttribute(hotFocusFg, hotFocusBg),
                         Disabled = Application.Driver.MakeAttribute(disabledFg, disabledBg)
+                    };
+                }
+
+                ColorScheme BuildReadOnlyScheme(ColorScheme source)
+                {
+                    return new ColorScheme
+                    {
+                        Normal = source.Normal,
+                        Focus = source.Normal,
+                        HotNormal = source.HotNormal,
+                        HotFocus = source.HotNormal,
+                        Disabled = source.Disabled
                     };
                 }
 
@@ -2744,6 +2597,7 @@ public static partial class TuiEntrypoint
                 tabView.ColorScheme = scheme;
                 navFrame.ColorScheme = scheme;
                 detailsFrame.ColorScheme = scheme;
+                detailsBody.ColorScheme = BuildReadOnlyScheme(detailsFrame.ColorScheme);
                 footer.ColorScheme = scheme;
                 listView.ColorScheme = scheme;
                 docsTree.ColorScheme = scheme;
@@ -2763,23 +2617,19 @@ public static partial class TuiEntrypoint
                     new StatusItem(Key.Esc, "~Esc~ Quit", () => Application.RequestStop()),
                     new StatusItem(Key.F1, "~F1~ Work", () => tabView.SelectedTab = workTab),
                     new StatusItem(Key.F2, "~F2~ Docs Tab", () => tabView.SelectedTab = docsTab),
-                    new StatusItem(Key.CtrlMask | Key.S, "~^S~ Settings", () => tabView.SelectedTab = settingsTab)
+                    new StatusItem(Key.F3, "~F3~ Settings", () => tabView.SelectedTab = settingsTab)
                 };
 
                 if (tabView.SelectedTab == workTab)
                 {
-                    items.Add(new StatusItem(Key.F3, "~F3~ New", ShowCreateDialog));
                     items.Add(new StatusItem(Key.F4, "~F4~ Status", ShowStatusDialog));
-                    items.Add(new StatusItem(Key.F5, "~F5~ Open", OpenSelectedItem));
-                    items.Add(new StatusItem(Key.F6, "~F6~ Links", OpenLinkedDocs));
-                    items.Add(new StatusItem(Key.F7, "~F7~ Issues", OpenLinkedIssues));
+                    items.Add(new StatusItem(Key.F5, "~F5~ New", ShowCreateDialog));
+                    items.Add(new StatusItem(Key.F6, "~F6~ Dry-run", ToggleDryRun));
                     items.Add(new StatusItem(Key.F8, "~F8~ New Doc (Link)", ShowDocCreateDialog));
                     items.Add(new StatusItem(Key.F9, "~F9~ Sync Nav", ShowSyncDialog));
                     items.Add(new StatusItem(Key.F10, "~F10~ Validate Repo", ShowValidateDialog));
-                    items.Add(new StatusItem(Key.F11, "~F11~ Dry-run", ToggleDryRun));
+                    items.Add(new StatusItem(Key.F11, "~F11~ Voice Edit", ShowVoiceEditDialog));
                     items.Add(new StatusItem(Key.F12, "~F12~ Voice Item", ShowVoiceWorkItemDialog));
-                    items.Add(new StatusItem(Key.CtrlMask | Key.R, "~^R~ Voice Item", ShowVoiceWorkItemDialog));
-                    items.Add(new StatusItem(Key.CtrlMask | Key.E, "~^E~ Voice Edit", ShowVoiceEditDialog));
                 }
                 else if (tabView.SelectedTab == docsTab)
                 {
@@ -2794,7 +2644,7 @@ public static partial class TuiEntrypoint
                     items.Add(new StatusItem(Key.F6, "~F6~ Save Creds", SaveCredentialsFromFields));
                     items.Add(new StatusItem(Key.F7, "~F7~ Reload", () =>
                     {
-                        settingsLoaded = false;
+                        context.SettingsLoaded = false;
                         LoadSettingsFields();
                     }));
                 }
@@ -2810,14 +2660,14 @@ public static partial class TuiEntrypoint
                 {
                     return;
                 }
-                PopulateLinks(item, linkTypeField, linkHint, linksList, linkTargets);
+                PopulateLinks(item, linkTypeField!, linkHint!, linksList!, linkTargets);
             };
 
             docsFilterField.TextChanged += _ => ApplyDocsFilter();
             tabView.SelectedTabChanged += (_, _) =>
             {
                 UpdateStatusBar();
-                if (tabView.SelectedTab == settingsTab && !settingsLoaded)
+                if (tabView.SelectedTab == settingsTab && !context.SettingsLoaded)
                 {
                     LoadSettingsFields();
                 }
@@ -2871,7 +2721,7 @@ public static partial class TuiEntrypoint
                 }
 
                 var resolved = ResolveDocsLink(repoRoot, config, path);
-                SetCommandPreview($"open \"{resolved}\"");
+                SetCommandPreview(context, $"open \"{resolved}\"");
                 try
                 {
                     var psi = new ProcessStartInfo
@@ -2900,7 +2750,7 @@ public static partial class TuiEntrypoint
                     return;
                 }
                 var resolved = ResolveLink(repoRoot, target);
-                SetCommandPreview($"open \"{resolved}\"");
+                SetCommandPreview(context, $"open \"{resolved}\"");
                 try
                 {
                     var psi = new ProcessStartInfo
