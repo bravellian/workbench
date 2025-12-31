@@ -143,10 +143,17 @@ public static partial class TuiEntrypoint
             };
             startWorkButton.Enabled = false;
 
+            var completeWorkButton = new Button("Complete work")
+            {
+                X = Pos.Right(startWorkButton) + 2,
+                Y = Pos.Bottom(detailsHeader)
+            };
+            completeWorkButton.Enabled = false;
+
             var linkTypeLabel = new Label("Links:")
             {
                 X = 1,
-                Y = Pos.Bottom(startWorkButton)
+                Y = Pos.Bottom(completeWorkButton)
             };
 
             var linksList = new ListView(new List<string>())
@@ -160,14 +167,14 @@ public static partial class TuiEntrypoint
             var linkTypeField = new TextField("all")
             {
                 X = Pos.Right(linkTypeLabel) + 1,
-                Y = Pos.Bottom(startWorkButton),
+                Y = Pos.Bottom(completeWorkButton),
                 Width = 12
             };
 
             var linkHint = new Label(string.Empty)
             {
                 X = Pos.Right(linkTypeField) + 2,
-                Y = Pos.Bottom(startWorkButton),
+                Y = Pos.Bottom(completeWorkButton),
                 Width = Dim.Fill()
             };
 
@@ -366,6 +373,7 @@ public static partial class TuiEntrypoint
                     linkHint!.Text = string.Empty;
                     SetCommandPreview(context, "(none)");
                     startWorkButton.Enabled = false;
+                    completeWorkButton.Enabled = false;
                     return;
                 }
 
@@ -379,6 +387,7 @@ public static partial class TuiEntrypoint
                     linkHint!.Text = string.Empty;
                     SetCommandPreview(context, "(none)");
                     startWorkButton.Enabled = false;
+                    completeWorkButton.Enabled = false;
                     return;
                 }
                 var specsCount = item.Related.Specs.Count;
@@ -391,6 +400,8 @@ public static partial class TuiEntrypoint
                 detailsBody.Text = item.Body;
                 SetCommandPreview(context, $"workbench item show {item.Id}");
                 startWorkButton.Enabled = true;
+                completeWorkButton.Enabled = !string.Equals(item.Status, "done", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(item.Status, "dropped", StringComparison.OrdinalIgnoreCase);
 
                 PopulateLinks(item, linkTypeField!, linkHint!, linksList!, linkTargets);
             }
@@ -919,6 +930,51 @@ public static partial class TuiEntrypoint
                 docsTree.AddObjects(roots);
             }
 
+            static string NormalizeIssueCloseTarget(string issue)
+            {
+                var trimmed = issue.Trim();
+                if (trimmed.StartsWith("<", StringComparison.Ordinal) && trimmed.EndsWith(">", StringComparison.Ordinal) && trimmed.Length > 1)
+                {
+                    trimmed = trimmed[1..^1].Trim();
+                }
+
+                if (trimmed.StartsWith("[", StringComparison.Ordinal) && trimmed.EndsWith(")", StringComparison.Ordinal))
+                {
+                    var linkStart = trimmed.IndexOf("](", StringComparison.Ordinal);
+                    if (linkStart > 0 && linkStart + 2 < trimmed.Length - 1)
+                    {
+                        trimmed = trimmed[(linkStart + 2)..^1].Trim();
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    return string.Empty;
+                }
+
+                if (trimmed.All(char.IsDigit))
+                {
+                    return $"#{trimmed}";
+                }
+
+                return trimmed;
+            }
+
+            static List<string> BuildClosingLines(WorkItem item)
+            {
+                var lines = new List<string>();
+                foreach (var issue in item.Related.Issues)
+                {
+                    var target = NormalizeIssueCloseTarget(issue);
+                    if (string.IsNullOrWhiteSpace(target))
+                    {
+                        continue;
+                    }
+                    lines.Add($"Closes {target}");
+                }
+                return lines;
+            }
+
             void ShowStartWorkDialog()
             {
                 var item = GetSelectedItem();
@@ -1087,6 +1143,170 @@ public static partial class TuiEntrypoint
             }
 
             startWorkButton.Clicked += ShowStartWorkDialog;
+
+            void ShowCompleteWorkDialog()
+            {
+                var item = GetSelectedItem();
+                if (item is null)
+                {
+                    ShowInfo("Select a work item first.");
+                    return;
+                }
+
+                if (context.Config.Git.RequireCleanWorkingTree && !GitService.IsClean(repoRoot))
+                {
+                    ShowInfo("Working tree is not clean.");
+                    return;
+                }
+
+                var hasIssues = item.Related.Issues.Count > 0;
+                var pushCheck = new CheckBox("Push branch to origin") { X = 1, Y = 1, Checked = true };
+                var prCheck = new CheckBox(hasIssues ? "Create pull request (closes issues)" : "Create pull request")
+                {
+                    X = 1,
+                    Y = 2,
+                    Checked = hasIssues
+                };
+                var draftCheck = new CheckBox("Draft PR") { X = 4, Y = 3, Checked = context.Config.Github.DefaultDraft };
+                var baseBranchLabel = new Label("Base branch (optional):") { X = 1, Y = 4 };
+                var baseBranchField = new TextField(string.Empty) { X = 26, Y = 4, Width = 20 };
+                var previewLabel = new Label("Command: (none)") { X = 1, Y = 6, Width = Dim.Fill(2) };
+
+                var dialog = new Dialog("Complete work", 70, 14)
+                {
+                    ColorScheme = Colors.Dialog
+                };
+                dialog.Add(
+                    new Label($"Item: {item.Id} {item.Title}") { X = 1, Y = 0 },
+                    pushCheck,
+                    prCheck,
+                    draftCheck,
+                    baseBranchLabel,
+                    baseBranchField,
+                    previewLabel);
+
+                void UpdatePreview()
+                {
+                    var command = $"complete work {item.Id}";
+                    if (pushCheck.Checked)
+                    {
+                        command += " + push";
+                    }
+                    if (prCheck.Checked)
+                    {
+                        command += " + pr";
+                    }
+                    if (prCheck.Checked && draftCheck.Checked)
+                    {
+                        command += " (draft)";
+                    }
+                    var baseBranch = baseBranchField.Text?.ToString();
+                    if (prCheck.Checked && !string.IsNullOrWhiteSpace(baseBranch))
+                    {
+                        command += $" base {baseBranch}";
+                    }
+                    if (context.DryRunEnabled)
+                    {
+                        command += " --dry-run";
+                    }
+                    previewLabel.Text = $"Command: {command}";
+                    SetCommandPreview(context, command);
+                }
+
+                pushCheck.Toggled += _ => UpdatePreview();
+                prCheck.Toggled += _ => UpdatePreview();
+                draftCheck.Toggled += _ => UpdatePreview();
+                baseBranchField.TextChanged += _ => UpdatePreview();
+                UpdatePreview();
+
+                var confirmed = false;
+                var cancelButton = new Button("Cancel");
+                var completeButton = new Button("Complete");
+                cancelButton.Clicked += () => Application.RequestStop();
+                completeButton.Clicked += () =>
+                {
+                    confirmed = true;
+                    Application.RequestStop();
+                };
+                dialog.AddButton(cancelButton);
+                dialog.AddButton(completeButton);
+
+                Application.Run(dialog);
+                if (!confirmed)
+                {
+                    return;
+                }
+
+                if (context.DryRunEnabled)
+                {
+                    ShowInfo("Dry-run enabled; no files were changed.");
+                    return;
+                }
+
+                var shouldPush = pushCheck.Checked || prCheck.Checked;
+                var baseBranch = baseBranchField.Text?.ToString();
+                var useDraft = draftCheck.Checked;
+
+                try
+                {
+                    var updated = WorkItemService.UpdateStatus(item.Path, "done", note: null);
+                    GitService.Add(repoRoot, updated.Path);
+                    var commitMessage = $"Complete {updated.Id}: {updated.Title}";
+                    GitService.Commit(repoRoot, commitMessage);
+
+                    if (shouldPush)
+                    {
+                        var currentBranch = GitService.GetCurrentBranch(repoRoot);
+                        GitService.Push(repoRoot, currentBranch);
+                    }
+
+                    string? prUrl = null;
+                    if (prCheck.Checked)
+                    {
+                        var prTitle = $"{updated.Id}: {updated.Title}";
+                        var prBody = PullRequestBuilder.BuildBody(updated);
+                        var closingLines = BuildClosingLines(updated);
+                        if (closingLines.Count > 0)
+                        {
+                            var bodyLines = new List<string>();
+                            if (!string.IsNullOrWhiteSpace(prBody))
+                            {
+                                bodyLines.Add(prBody.TrimEnd());
+                                bodyLines.Add(string.Empty);
+                            }
+                            bodyLines.Add("## Issues");
+                            bodyLines.AddRange(closingLines);
+                            prBody = string.Join("\n", bodyLines).TrimEnd();
+                        }
+                        var prRepo = GithubService.ResolveRepo(repoRoot, context.Config);
+                        var baseTarget = string.IsNullOrWhiteSpace(baseBranch) ? context.Config.Git.DefaultBaseBranch : baseBranch;
+                        prUrl = RunWithBusyDialog(
+                            "Creating PR",
+                            "Creating pull request...",
+                            () => GithubService.CreatePullRequestAsync(repoRoot, context.Config, prRepo, prTitle, prBody, baseTarget, useDraft));
+                        if (!string.IsNullOrWhiteSpace(prUrl))
+                        {
+                            WorkItemService.AddPrLink(updated.Path, prUrl);
+                        }
+                    }
+
+                    ReloadItems();
+                    SelectItemById(updated.Id);
+
+                    var summary = $"{updated.Id} completed.";
+                    if (!string.IsNullOrWhiteSpace(prUrl))
+                    {
+                        summary += $" PR: {prUrl}";
+                    }
+                    ShowInfo(summary);
+                }
+                catch (Exception ex)
+                {
+                    ShowError(ex);
+                }
+            }
+
+            completeWorkButton.Clicked += ShowCompleteWorkDialog;
 
             void ActivateSelectedDoc()
             {
@@ -2436,6 +2656,7 @@ public static partial class TuiEntrypoint
             navFrame.Add(filterLabel, filterField, statusLabel, statusField, statusPickButton, listView);
             detailsFrame.Add(detailsHeader);
             detailsFrame.Add(startWorkButton);
+            detailsFrame.Add(completeWorkButton);
             detailsFrame.Add(detailsBody);
             detailsFrame.Add(detailsDivider);
             detailsFrame.Add(linkTypeLabel);
