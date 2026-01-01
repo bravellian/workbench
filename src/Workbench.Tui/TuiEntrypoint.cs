@@ -209,6 +209,12 @@ public static partial class TuiEntrypoint
                 X = 16,
                 Y = 0
             };
+            var gitInfoLabel = new Label("Git: (unknown)")
+            {
+                X = Pos.AnchorEnd(30),
+                Y = 0,
+                Width = 29
+            };
             context.DryRunLabel = dryRunLabel;
             context.CommandPreviewLabel = commandPreviewLabel;
             context.FilterField = filterField;
@@ -219,6 +225,21 @@ public static partial class TuiEntrypoint
             context.LinkTypeField = linkTypeField;
             context.LinkHint = linkHint;
 
+            void UpdateGitInfo()
+            {
+                try
+                {
+                    var branch = GitService.GetCurrentBranch(repoRoot);
+                    var clean = GitService.IsClean(repoRoot);
+                    gitInfoLabel.Text = $"Git: {branch} {(clean ? "clean" : "dirty")}";
+                }
+                catch
+                {
+                    gitInfoLabel.Text = "Git: unavailable";
+#pragma warning disable ERP022
+                }
+#pragma warning restore ERP022
+            }
 
             void ShowDocPreviewDialog(string path, string resolvedPath, string content)
             {
@@ -2665,6 +2686,7 @@ public static partial class TuiEntrypoint
             detailsFrame.Add(linksList);
             footer.Add(dryRunLabel);
             footer.Add(commandPreviewLabel);
+            footer.Add(gitInfoLabel);
 
             var workTab = new TabView.Tab("Work Items", new View());
             workTab.View.Add(navFrame, detailsFrame);
@@ -2675,9 +2697,99 @@ public static partial class TuiEntrypoint
             var settingsTab = new TabView.Tab("Settings", new View());
             settingsTab.View.Add(settingsScroll);
 
+            var repoTab = new TabView.Tab("Repo", new View());
+            var repoFrame = new FrameView("Repository")
+            {
+                X = 0,
+                Y = 0,
+                Width = Dim.Fill(),
+                Height = Dim.Fill()
+            };
+            var repoSummary = new Label("Basic git actions (no conflict handling).")
+            {
+                X = 1,
+                Y = 0
+            };
+            var pullButton = new Button("Pull")
+            {
+                X = 1,
+                Y = 2
+            };
+            var stageButton = new Button("Stage all")
+            {
+                X = Pos.Right(pullButton) + 2,
+                Y = 2
+            };
+            var pushButton = new Button("Push")
+            {
+                X = Pos.Right(stageButton) + 2,
+                Y = 2
+            };
+
+            void ExecutePull()
+            {
+                try
+                {
+                    SetCommandPreview(context, "git pull --ff-only");
+                    var result = GitService.Run(repoRoot, "pull", "--ff-only");
+                    if (result.ExitCode != 0)
+                    {
+                        throw new InvalidOperationException(result.StdErr.Length > 0 ? result.StdErr : "git pull failed.");
+                    }
+                    UpdateGitInfo();
+                    ShowInfo("Pull completed.");
+                }
+                catch (Exception ex)
+                {
+                    ShowError(ex);
+                }
+            }
+
+            void ExecuteStage()
+            {
+                try
+                {
+                    SetCommandPreview(context, "git add -A");
+                    var result = GitService.Run(repoRoot, "add", "-A");
+                    if (result.ExitCode != 0)
+                    {
+                        throw new InvalidOperationException(result.StdErr.Length > 0 ? result.StdErr : "git add failed.");
+                    }
+                    UpdateGitInfo();
+                    ShowInfo("Staged all changes.");
+                }
+                catch (Exception ex)
+                {
+                    ShowError(ex);
+                }
+            }
+
+            void ExecutePush()
+            {
+                try
+                {
+                    var branch = GitService.GetCurrentBranch(repoRoot);
+                    SetCommandPreview(context, $"git push -u origin {branch}");
+                    GitService.Push(repoRoot, branch);
+                    UpdateGitInfo();
+                    ShowInfo("Push completed.");
+                }
+                catch (Exception ex)
+                {
+                    ShowError(ex);
+                }
+            }
+
+            pullButton.Clicked += ExecutePull;
+            stageButton.Clicked += ExecuteStage;
+            pushButton.Clicked += ExecutePush;
+            repoFrame.Add(repoSummary, pullButton, stageButton, pushButton);
+            repoTab.View.Add(repoFrame);
+
             tabView.AddTab(workTab, true);
             tabView.AddTab(docsTab, false);
             tabView.AddTab(settingsTab, false);
+            tabView.AddTab(repoTab, false);
 
             window.Add(tabView, footer);
             top.Add(window);
@@ -2838,12 +2950,13 @@ public static partial class TuiEntrypoint
                     new StatusItem(Key.Esc, "~Esc~ Quit", () => Application.RequestStop()),
                     new StatusItem(Key.F1, "~F1~ Work", () => tabView.SelectedTab = workTab),
                     new StatusItem(Key.F2, "~F2~ Docs Tab", () => tabView.SelectedTab = docsTab),
-                    new StatusItem(Key.F3, "~F3~ Settings", () => tabView.SelectedTab = settingsTab)
+                    new StatusItem(Key.F3, "~F3~ Settings", () => tabView.SelectedTab = settingsTab),
+                    new StatusItem(Key.F4, "~F4~ Repo", () => tabView.SelectedTab = repoTab)
                 };
 
                 if (tabView.SelectedTab == workTab)
                 {
-                    items.Add(new StatusItem(Key.F4, "~F4~ Status", ShowStatusDialog));
+                    items.Add(new StatusItem(Key.F7, "~F7~ Status", ShowStatusDialog));
                     items.Add(new StatusItem(Key.F5, "~F5~ New", ShowCreateDialog));
                     items.Add(new StatusItem(Key.F6, "~F6~ Dry-run", ToggleDryRun));
                     items.Add(new StatusItem(Key.F8, "~F8~ New Doc (Link)", ShowDocCreateDialog));
@@ -2859,7 +2972,7 @@ public static partial class TuiEntrypoint
                     items.Add(new StatusItem(Key.F9, "~F9~ Voice Doc", ShowVoiceDocDialog));
                     items.Add(new StatusItem(Key.Enter, "~Enter~ Open", ActivateSelectedDoc));
                 }
-                else
+                else if (tabView.SelectedTab == settingsTab)
                 {
                     items.Add(new StatusItem(Key.F5, "~F5~ Save Config", SaveConfigFromFields));
                     items.Add(new StatusItem(Key.F6, "~F6~ Save Creds", SaveCredentialsFromFields));
@@ -2868,6 +2981,12 @@ public static partial class TuiEntrypoint
                         context.SettingsLoaded = false;
                         LoadSettingsFields();
                     }));
+                }
+                else if (tabView.SelectedTab == repoTab)
+                {
+                    items.Add(new StatusItem(Key.F5, "~F5~ Pull", ExecutePull));
+                    items.Add(new StatusItem(Key.F6, "~F6~ Stage All", ExecuteStage));
+                    items.Add(new StatusItem(Key.F7, "~F7~ Push", ExecutePush));
                 }
 
                 statusBar.Items = items.ToArray();
@@ -2888,6 +3007,7 @@ public static partial class TuiEntrypoint
             tabView.SelectedTabChanged += (_, _) =>
             {
                 UpdateStatusBar();
+                UpdateGitInfo();
                 if (tabView.SelectedTab == settingsTab && !context.SettingsLoaded)
                 {
                     LoadSettingsFields();
@@ -2991,6 +3111,7 @@ public static partial class TuiEntrypoint
             ApplyDocsFilter();
             ApplyTheme(config.Tui.Theme);
             UpdateStatusBar();
+            UpdateGitInfo();
             Application.Run();
         }
         finally
