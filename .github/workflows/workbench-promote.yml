@@ -82,7 +82,7 @@ jobs:
             $exitCode = $LASTEXITCODE
             if ($exitCode -ne 0) {
               Write-Host $commandOutput
-              throw "Command failed with exit code $exitCode: $FilePath $joinedArgs"
+              throw "Command failed with exit code ${exitCode}: $FilePath $joinedArgs"
             }
             return $output
           }
