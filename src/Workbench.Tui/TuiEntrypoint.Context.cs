@@ -102,8 +102,10 @@ public static partial class TuiEntrypoint
         public TextField? AiProviderField { get; set; }
         public Button? AiProviderPickButton { get; set; }
         public TextField? AiOpenAiKeyField { get; set; }
+        public Label? AiOpenAiKeyStatusLabel { get; set; }
         public TextField? AiModelField { get; set; }
         public TextField? GithubTokenField { get; set; }
+        public Label? GithubTokenStatusLabel { get; set; }
 
         public string[] WorkItemStatusOptions { get; }
         public string[] WorkItemTypeOptions { get; }
