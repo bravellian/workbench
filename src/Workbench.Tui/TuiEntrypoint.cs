@@ -1137,7 +1137,7 @@ public static partial class TuiEntrypoint
 
                     var prompt = BuildCodexPrompt(item);
                     SetCommandPreview(context, "codex --full-auto --web-search --prompt <work item>");
-                    CodexService.StartFullAuto(repoRoot, prompt);
+                    CodexService.StartFullAutoInTerminal(repoRoot, prompt);
                     UpdateGitInfo();
                     UpdateDetails(listView.SelectedItem);
                     ShowInfo($"{item.Id} started in Codex on {startBranch}.");
