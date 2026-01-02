@@ -28,6 +28,7 @@ public static partial class TuiEntrypoint
         var config = WorkbenchConfig.Load(repoRoot, out _);
         var allItems = LoadItems(repoRoot, config);
         StatusBar? statusBar = null;
+        object? autoRefreshToken = null;
         ColorScheme? defaultScheme = null;
         var workItemStatusOptions = new[] { "all", "draft", "ready", "in-progress", "blocked", "done", "dropped" };
         var workItemTypeOptions = new[] { "task", "bug", "spike" };
@@ -228,9 +229,20 @@ public static partial class TuiEntrypoint
             };
             var gitInfoLabel = new Label("Git: (unknown)")
             {
-                X = Pos.AnchorEnd(30),
+                X = Pos.AnchorEnd(62),
                 Y = 0,
                 Width = 29
+            };
+            var lastRefreshLabel = new Label("Updated: --:--:--")
+            {
+                X = Pos.AnchorEnd(32),
+                Y = 0,
+                Width = 20
+            };
+            var refreshButton = new Button("Refresh")
+            {
+                X = Pos.AnchorEnd(9),
+                Y = 0
             };
             context.DryRunLabel = dryRunLabel;
             context.CommandPreviewLabel = commandPreviewLabel;
@@ -256,6 +268,32 @@ public static partial class TuiEntrypoint
 #pragma warning disable ERP022
                 }
 #pragma warning restore ERP022
+            }
+
+            void UpdateLastRefreshLabel()
+            {
+                var now = DateTimeOffset.Now;
+                lastRefreshLabel.Text = $"Updated: {now:HH:mm:ss}";
+            }
+
+            void ConfigureAutoRefresh()
+            {
+                if (autoRefreshToken is not null)
+                {
+                    Application.MainLoop.RemoveTimeout(autoRefreshToken);
+                    autoRefreshToken = null;
+                }
+
+                if (config.Tui.AutoRefreshSeconds <= 0)
+                {
+                    return;
+                }
+
+                autoRefreshToken = Application.MainLoop.AddTimeout(TimeSpan.FromSeconds(config.Tui.AutoRefreshSeconds), _ =>
+                {
+                    RefreshAll(showInfo: false);
+                    return true;
+                });
             }
 
             void ShowDocPreviewDialog(string path, string resolvedPath, string content)
@@ -658,6 +696,7 @@ public static partial class TuiEntrypoint
             var themeField = new TextField("default");
             var themePickButton = CreatePickerButton(themeField, themeOptions, "Theme");
             var useEmojiCheck = new CheckBox("Use emoji labels");
+            var autoRefreshSecondsField = new TextField(string.Empty);
             context.DocsRootField = docsRootField;
             context.WorkRootField = workRootField;
             context.ItemsDirField = itemsDirField;
@@ -667,6 +706,7 @@ public static partial class TuiEntrypoint
             context.ThemeField = themeField;
             context.ThemePickButton = themePickButton;
             context.UseEmojiCheck = useEmojiCheck;
+            context.AutoRefreshSecondsField = autoRefreshSecondsField;
 
             var idWidthField = new TextField(string.Empty);
             var bugPrefixField = new TextField(string.Empty);
@@ -756,6 +796,7 @@ public static partial class TuiEntrypoint
                 var gitConfig = loadedConfig.Git ?? new GitConfig();
                 var githubConfig = loadedConfig.Github ?? new GithubConfig();
                 var validationConfig = loadedConfig.Validation ?? new ValidationConfig();
+                var tuiConfig = loadedConfig.Tui ?? new TuiConfig();
 
                 docsRootField.Text = pathsConfig.DocsRoot ?? string.Empty;
                 workRootField.Text = pathsConfig.WorkRoot ?? string.Empty;
@@ -763,8 +804,9 @@ public static partial class TuiEntrypoint
                 doneDirField.Text = pathsConfig.DoneDir ?? string.Empty;
                 templatesDirField.Text = pathsConfig.TemplatesDir ?? string.Empty;
                 workboardFileField.Text = pathsConfig.WorkboardFile ?? string.Empty;
-                themeField.Text = (loadedConfig.Tui?.Theme ?? "powershell").Trim();
-                useEmojiCheck.Checked = loadedConfig.Tui?.UseEmoji ?? true;
+                themeField.Text = (tuiConfig.Theme ?? "powershell").Trim();
+                useEmojiCheck.Checked = tuiConfig.UseEmoji;
+                autoRefreshSecondsField.Text = tuiConfig.AutoRefreshSeconds.ToString(CultureInfo.InvariantCulture);
 
                 idWidthField.Text = idsConfig.Width.ToString(CultureInfo.InvariantCulture);
                 bugPrefixField.Text = prefixesConfig.Bug ?? string.Empty;
@@ -811,6 +853,12 @@ public static partial class TuiEntrypoint
                     ShowInfo("ID width must be a number.");
                     return;
                 }
+                if (!int.TryParse(autoRefreshSecondsField.Text?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var autoRefreshSeconds)
+                    || autoRefreshSeconds < 0)
+                {
+                    ShowInfo("Auto refresh seconds must be zero or greater.");
+                    return;
+                }
 
                 var updated = new WorkbenchConfig(
                     new PathsConfig
@@ -853,7 +901,8 @@ public static partial class TuiEntrypoint
                     new TuiConfig
                     {
                         Theme = themeField.Text?.ToString() ?? "powershell",
-                        UseEmoji = useEmojiCheck.Checked
+                        UseEmoji = useEmojiCheck.Checked,
+                        AutoRefreshSeconds = autoRefreshSeconds
                     });
 
                 try
@@ -868,6 +917,7 @@ public static partial class TuiEntrypoint
                     context.DocsAll = docsAll;
                     ApplyDocsFilter();
                     ApplyTheme(config.Tui.Theme);
+                    ConfigureAutoRefresh();
                     ShowInfo("Config saved.");
                 }
                 catch (Exception ex)
@@ -922,6 +972,7 @@ public static partial class TuiEntrypoint
             useEmojiCheck.Y = settingsY;
             settingsScroll.Add(useEmojiCheck);
             settingsY++;
+            settingsY = AddFieldRow(settingsScroll, "Auto refresh (sec):", autoRefreshSecondsField, settingsY, labelWidth, 10);
             settingsY++;
             settingsY = AddFieldRow(settingsScroll, "ID width:", idWidthField, settingsY, labelWidth, fieldWidth);
             settingsY = AddFieldRow(settingsScroll, "Bug prefix:", bugPrefixField, settingsY, labelWidth, fieldWidth);
@@ -2842,6 +2893,8 @@ public static partial class TuiEntrypoint
             footer.Add(dryRunLabel);
             footer.Add(commandPreviewLabel);
             footer.Add(gitInfoLabel);
+            footer.Add(lastRefreshLabel);
+            footer.Add(refreshButton);
 
             var workTab = new TabView.Tab("Work Items", new View());
             workTab.View.Add(navFrame, detailsFrame);
@@ -2940,6 +2993,42 @@ public static partial class TuiEntrypoint
             pushButton.Clicked += ExecutePush;
             repoFrame.Add(repoSummary, pullButton, stageButton, pushButton);
             repoTab.View.Add(repoFrame);
+
+            void RefreshAll(bool showInfo)
+            {
+                var selectedId = GetSelectedItem()?.Id;
+                var loadedConfig = WorkbenchConfig.Load(repoRoot, out var configError);
+                if (!string.IsNullOrWhiteSpace(configError) && showInfo)
+                {
+                    ShowInfo($"Config load error: {configError}");
+                }
+
+                config = loadedConfig;
+                context.Config = loadedConfig;
+                ReloadItems();
+                if (!string.IsNullOrWhiteSpace(selectedId))
+                {
+                    SelectItemById(selectedId);
+                }
+
+                docsAll = LoadDocs(repoRoot, config);
+                context.DocsAll = docsAll;
+                ApplyDocsFilter();
+
+                context.SettingsLoaded = false;
+                if (tabView.SelectedTab == settingsTab)
+                {
+                    LoadSettingsFields();
+                }
+
+                ApplyTheme(config.Tui.Theme);
+                UpdateGitInfo();
+                UpdateCodexStartState(GetSelectedItem());
+                ConfigureAutoRefresh();
+                UpdateLastRefreshLabel();
+            }
+
+            refreshButton.Clicked += () => RefreshAll(showInfo: true);
 
             tabView.AddTab(workTab, true);
             tabView.AddTab(docsTab, false);
@@ -3267,6 +3356,8 @@ public static partial class TuiEntrypoint
             ApplyTheme(config.Tui.Theme);
             UpdateStatusBar();
             UpdateGitInfo();
+            UpdateLastRefreshLabel();
+            ConfigureAutoRefresh();
             Application.Run();
         }
         finally
