@@ -8,7 +8,7 @@ public static class CodexService
     public sealed record CommandResult(int ExitCode, string StdOut, string StdErr);
 
     private const string FullAutoFlag = "--full-auto";
-    private const string WebSearchFlag = "--web-search";
+    private const string WebSearchFlag = "--search";
     private const string PromptFlag = "--prompt";
     private static readonly string[] windowsExecutableExtensions = { ".exe", ".cmd", ".bat", ".com" };
 
