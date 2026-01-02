@@ -38,6 +38,9 @@ public static partial class TuiEntrypoint
         public List<string> DocsAll { get; set; } = new();
         public bool DryRunEnabled { get; set; }
         public bool SettingsLoaded { get; set; }
+        public bool CodexAvailable { get; set; }
+        public string? CodexVersion { get; set; }
+        public string? CodexError { get; set; }
 
         public StatusBar? StatusBar { get; set; }
         public ColorScheme? DefaultScheme { get; set; }

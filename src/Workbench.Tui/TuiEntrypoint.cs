@@ -37,6 +37,9 @@ public static partial class TuiEntrypoint
             StatusBar = statusBar,
             DefaultScheme = defaultScheme
         };
+        context.CodexAvailable = CodexService.TryGetVersion(repoRoot, out var codexVersion, out var codexError);
+        context.CodexVersion = codexVersion;
+        context.CodexError = codexError;
         var filteredItems = context.FilteredItems;
         var listItemLookup = context.ListItemLookup;
         var linkTargets = context.LinkTargets;
@@ -150,10 +153,24 @@ public static partial class TuiEntrypoint
             };
             completeWorkButton.Enabled = false;
 
+            var codexWorkButton = new Button("Start work (Codex)")
+            {
+                X = 1,
+                Y = Pos.Bottom(startWorkButton) + 1
+            };
+            codexWorkButton.Enabled = false;
+
+            var codexHintLabel = new Label(string.Empty)
+            {
+                X = Pos.Right(codexWorkButton) + 2,
+                Y = Pos.Bottom(startWorkButton) + 1,
+                Width = Dim.Fill()
+            };
+
             var linkTypeLabel = new Label("Links:")
             {
                 X = 1,
-                Y = Pos.Bottom(completeWorkButton)
+                Y = Pos.Bottom(codexWorkButton)
             };
 
             var linksList = new ListView(new List<string>())
@@ -383,6 +400,46 @@ public static partial class TuiEntrypoint
                 return -1;
             }
 
+            void UpdateCodexStartState(WorkItem? item)
+            {
+                if (!context.CodexAvailable)
+                {
+                    codexWorkButton.Enabled = false;
+                    codexHintLabel.Text = string.IsNullOrWhiteSpace(context.CodexError)
+                        ? "Codex CLI unavailable."
+                        : $"Codex unavailable: {context.CodexError}";
+                    return;
+                }
+
+                if (item is null)
+                {
+                    codexWorkButton.Enabled = false;
+                    codexHintLabel.Text = "Select a work item to start Codex.";
+                    return;
+                }
+
+                try
+                {
+                    if (!GitService.IsClean(repoRoot))
+                    {
+                        codexWorkButton.Enabled = false;
+                        codexHintLabel.Text = "Commit or stash changes to start Codex.";
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    codexWorkButton.Enabled = false;
+                    codexHintLabel.Text = $"Git unavailable: {ex.Message}";
+                    return;
+                }
+
+                codexWorkButton.Enabled = true;
+                codexHintLabel.Text = string.IsNullOrWhiteSpace(context.CodexVersion)
+                    ? "Codex ready."
+                    : $"Codex {context.CodexVersion}";
+            }
+
             void UpdateDetails(int index)
             {
                 if (index < 0 || index >= listItemLookup.Count)
@@ -395,6 +452,7 @@ public static partial class TuiEntrypoint
                     SetCommandPreview(context, "(none)");
                     startWorkButton.Enabled = false;
                     completeWorkButton.Enabled = false;
+                    UpdateCodexStartState(null);
                     return;
                 }
 
@@ -409,6 +467,7 @@ public static partial class TuiEntrypoint
                     SetCommandPreview(context, "(none)");
                     startWorkButton.Enabled = false;
                     completeWorkButton.Enabled = false;
+                    UpdateCodexStartState(null);
                     return;
                 }
                 var specsCount = item.Related.Specs.Count;
@@ -423,6 +482,7 @@ public static partial class TuiEntrypoint
                 startWorkButton.Enabled = true;
                 completeWorkButton.Enabled = !string.Equals(item.Status, "done", StringComparison.OrdinalIgnoreCase)
                     && !string.Equals(item.Status, "dropped", StringComparison.OrdinalIgnoreCase);
+                UpdateCodexStartState(item);
 
                 PopulateLinks(item, linkTypeField!, linkHint!, linksList!, linkTargets);
             }
@@ -996,6 +1056,98 @@ public static partial class TuiEntrypoint
                 return lines;
             }
 
+            static string BuildCodexPrompt(WorkItem item)
+            {
+                var tags = item.Tags.Count > 0 ? string.Join(", ", item.Tags) : "(none)";
+                var priority = string.IsNullOrWhiteSpace(item.Priority) ? "-" : item.Priority;
+                var owner = string.IsNullOrWhiteSpace(item.Owner) ? "-" : item.Owner;
+
+                return $"""
+                    Work item context:
+                    Id: {item.Id}
+                    Title: {item.Title}
+                    Type: {item.Type}
+                    Status: {item.Status}
+                    Priority: {priority}
+                    Owner: {owner}
+                    Tags: {tags}
+                    Body:
+                    {item.Body}
+
+                    Implement the work item in this repository.
+                    """;
+            }
+
+            void StartCodexWork()
+            {
+                var item = GetSelectedItem();
+                if (item is null)
+                {
+                    ShowInfo("Select a work item first.");
+                    return;
+                }
+
+                if (!context.CodexAvailable)
+                {
+                    ShowInfo("Codex CLI is not available.");
+                    return;
+                }
+
+                try
+                {
+                    if (!GitService.IsClean(repoRoot))
+                    {
+                        ShowInfo("Working tree is not clean.");
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowError(ex);
+                    return;
+                }
+
+                try
+                {
+                    var startBranch = ApplyPattern(context.Config.Git.BranchPattern, item);
+                    if (GitService.BranchExists(repoRoot, startBranch))
+                    {
+                        var choice = MessageBox.Query(
+                            "Branch exists",
+                            $"Branch '{startBranch}' already exists. Checkout it?",
+                            "Checkout",
+                            "Cancel");
+                        if (choice != 0)
+                        {
+                            return;
+                        }
+
+                        var checkout = GitService.Run(repoRoot, "checkout", startBranch);
+                        if (checkout.ExitCode != 0)
+                        {
+                            throw new InvalidOperationException(checkout.StdErr.Length > 0 ? checkout.StdErr : "git checkout failed.");
+                        }
+                    }
+                    else
+                    {
+                        GitService.CheckoutNewBranch(repoRoot, startBranch);
+                    }
+
+                    GitService.Push(repoRoot, startBranch);
+
+                    var prompt = BuildCodexPrompt(item);
+                    SetCommandPreview(context, "codex --full-auto --web-search --prompt <work item>");
+                    CodexService.StartFullAuto(repoRoot, prompt);
+                    UpdateGitInfo();
+                    UpdateDetails(listView.SelectedItem);
+                    ShowInfo($"{item.Id} started in Codex on {startBranch}.");
+                }
+                catch (Exception ex)
+                {
+                    ShowError(ex);
+                }
+            }
+
             void ShowStartWorkDialog()
             {
                 var item = GetSelectedItem();
@@ -1164,6 +1316,7 @@ public static partial class TuiEntrypoint
             }
 
             startWorkButton.Clicked += ShowStartWorkDialog;
+            codexWorkButton.Clicked += StartCodexWork;
 
             void ShowCompleteWorkDialog()
             {
@@ -2678,6 +2831,8 @@ public static partial class TuiEntrypoint
             detailsFrame.Add(detailsHeader);
             detailsFrame.Add(startWorkButton);
             detailsFrame.Add(completeWorkButton);
+            detailsFrame.Add(codexWorkButton);
+            detailsFrame.Add(codexHintLabel);
             detailsFrame.Add(detailsBody);
             detailsFrame.Add(detailsDivider);
             detailsFrame.Add(linkTypeLabel);
