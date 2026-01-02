@@ -175,6 +175,41 @@ public static class WorkItemService
         return LoadItem(path) ?? throw new InvalidOperationException("Failed to reload work item.");
     }
 
+    public static WorkItem ApplyEditDraft(string path, WorkItemDraft draft)
+    {
+        var content = File.ReadAllText(path);
+        if (!FrontMatter.TryParse(content, out var frontMatter, out var error))
+        {
+            throw new InvalidOperationException($"Front matter error: {error}");
+        }
+
+        var data = frontMatter!.Data;
+        var title = draft.Title?.Trim();
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            data["title"] = title;
+        }
+
+        var summary = draft.Summary?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(summary))
+        {
+            throw new InvalidOperationException("Draft summary is empty.");
+        }
+
+        var criteria = FormatAcceptanceCriteria(draft.AcceptanceCriteria);
+        var body = frontMatter.Body;
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            body = ReplaceTitleHeading(body, GetString(data, "id") ?? string.Empty, title);
+        }
+        body = ReplaceSection(body, "Summary", summary);
+        body = ReplaceSection(body, "Acceptance criteria", criteria);
+        frontMatter = new FrontMatter(data, body);
+        File.WriteAllText(path, frontMatter.Serialize());
+
+        return LoadItem(path) ?? throw new InvalidOperationException("Failed to reload work item.");
+    }
+
     public static WorkItem UpdateItemFromGithubIssue(string path, GithubIssue issue, bool apply)
     {
         var content = File.ReadAllText(path);

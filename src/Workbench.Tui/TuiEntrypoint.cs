@@ -1809,6 +1809,10 @@ public static partial class TuiEntrypoint
 
                 return $"""
                     Update the work item using the user's voice notes. Preserve anything not mentioned.
+                    The user update describes changes to apply, not text to copy verbatim. Do not include
+                    instructions like "update this task" unless the user explicitly wants that phrasing in
+                    the work item content. Only update the title and body sections (summary and acceptance
+                    criteria). Do not modify front matter fields, related links, or other metadata.
                     Existing work item:
                     Id: {item.Id}
                     Title: {item.Title}
@@ -2146,7 +2150,7 @@ public static partial class TuiEntrypoint
                         return;
                     }
 
-                    WorkItemService.ApplyDraft(item.Path, draft);
+                    WorkItemService.ApplyEditDraft(item.Path, draft);
                     ReloadItems();
                     ShowInfo($"{item.Id} updated.");
                 }
