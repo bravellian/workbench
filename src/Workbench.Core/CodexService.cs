@@ -9,6 +9,7 @@ public static class CodexService
 
     private const string FullAutoFlag = "--full-auto";
     private const string WebSearchFlag = "--search";
+    private const int VersionTimeoutMs = 5000;
     private static readonly string[] windowsExecutableExtensions = { ".exe", ".cmd", ".bat", ".com" };
 
     public static CommandResult Run(string repoRoot, params string[] args)
@@ -28,7 +29,7 @@ public static class CodexService
         error = null;
         try
         {
-            var result = Run(repoRoot, "--version");
+            var result = RunWithTimeout(repoRoot, VersionTimeoutMs, "--version");
             if (result.ExitCode != 0)
             {
                 error = result.StdErr.Length > 0 ? result.StdErr : "codex --version failed.";
@@ -43,6 +44,35 @@ public static class CodexService
             error = ex.ToString();
             return false;
         }
+    }
+
+    private static CommandResult RunWithTimeout(string repoRoot, int timeoutMs, params string[] args)
+    {
+        var psi = CreateCodexProcessStartInfo(repoRoot, redirectOutput: true, args);
+
+        using var process = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start codex.");
+        if (!process.WaitForExit(timeoutMs))
+        {
+            try
+            {
+                process.Kill(true);
+            }
+            catch (InvalidOperationException)
+            {
+                // Process already exited.
+            }
+
+            process.WaitForExit();
+            var stdoutTimeout = process.StandardOutput.ReadToEnd();
+            var stderrTimeout = process.StandardError.ReadToEnd();
+            var timeoutError = $"codex --version timed out after {timeoutMs}ms.";
+            var timeoutStderr = string.IsNullOrWhiteSpace(stderrTimeout) ? timeoutError : $"{timeoutError} {stderrTimeout}";
+            return new CommandResult(-1, stdoutTimeout.Trim(), timeoutStderr.Trim());
+        }
+
+        var stdout = process.StandardOutput.ReadToEnd();
+        var stderr = process.StandardError.ReadToEnd();
+        return new CommandResult(process.ExitCode, stdout.Trim(), stderr.Trim());
     }
 
     public static void StartFullAuto(string repoRoot, string prompt)
