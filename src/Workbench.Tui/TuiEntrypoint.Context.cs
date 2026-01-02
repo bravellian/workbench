@@ -78,6 +78,7 @@ public static partial class TuiEntrypoint
         public TextField? ThemeField { get; set; }
         public Button? ThemePickButton { get; set; }
         public CheckBox? UseEmojiCheck { get; set; }
+        public TextField? AutoRefreshSecondsField { get; set; }
 
         public TextField? IdWidthField { get; set; }
         public TextField? BugPrefixField { get; set; }
