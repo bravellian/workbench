@@ -20,11 +20,11 @@ public static class EnvLoader
             return;
         }
 
-        LoadEnvFile(Path.Combine(fullRoot, ".env"));
-        LoadEnvFile(Path.Combine(fullRoot, ".workbench", "credentials.env"));
+        LoadEnvFile(Path.Combine(fullRoot, ".env"), overrideExisting: false);
+        LoadEnvFile(Path.Combine(fullRoot, ".workbench", "credentials.env"), overrideExisting: true);
     }
 
-    private static void LoadEnvFile(string path)
+    private static void LoadEnvFile(string path, bool overrideExisting)
     {
         if (!File.Exists(path))
         {
@@ -67,10 +67,12 @@ public static class EnvLoader
                 }
             }
 
-            if (Environment.GetEnvironmentVariable(key) is null)
+            if (!overrideExisting && Environment.GetEnvironmentVariable(key) is not null)
             {
-                Environment.SetEnvironmentVariable(key, value);
+                continue;
             }
+
+            Environment.SetEnvironmentVariable(key, value);
         }
     }
 }

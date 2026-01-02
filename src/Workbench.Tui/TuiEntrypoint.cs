@@ -25,6 +25,7 @@ public static partial class TuiEntrypoint
             return 2;
         }
 
+        EnvLoader.LoadRepoEnv(repoRoot);
         var config = WorkbenchConfig.Load(repoRoot, out _);
         var allItems = LoadItems(repoRoot, config);
         StatusBar? statusBar = null;
@@ -707,13 +708,17 @@ public static partial class TuiEntrypoint
             var aiProviderField = new TextField("openai");
             var aiProviderPickButton = CreatePickerButton(aiProviderField, aiProviderOptions, "AI provider");
             var aiOpenAiKeyField = new TextField(string.Empty) { Secret = true };
+            var aiOpenAiKeyStatusLabel = new Label(string.Empty);
             var aiModelField = new TextField(string.Empty);
             var githubTokenField = new TextField(string.Empty) { Secret = true };
+            var githubTokenStatusLabel = new Label(string.Empty);
             context.AiProviderField = aiProviderField;
             context.AiProviderPickButton = aiProviderPickButton;
             context.AiOpenAiKeyField = aiOpenAiKeyField;
+            context.AiOpenAiKeyStatusLabel = aiOpenAiKeyStatusLabel;
             context.AiModelField = aiModelField;
             context.GithubTokenField = githubTokenField;
+            context.GithubTokenStatusLabel = githubTokenStatusLabel;
 
             int AddFieldRow(ScrollView view, string label, TextField field, int y, int labelWidth, int fieldWidth)
             {
@@ -736,6 +741,34 @@ public static partial class TuiEntrypoint
                 view.Add(field);
                 view.Add(pickButton);
                 return y + 1;
+            }
+
+            string ResolveEnvValueFromSources(List<string> envLines, string fileKey, IReadOnlyList<string> envKeys, out string status)
+            {
+                if (TryGetEnvValue(envLines, fileKey, out var fileValue))
+                {
+                    if (string.IsNullOrWhiteSpace(fileValue))
+                    {
+                        status = $"credentials.env entry for {fileKey} is empty (overrides env).";
+                        return string.Empty;
+                    }
+
+                    status = $"Found in credentials.env ({fileKey}).";
+                    return fileValue ?? string.Empty;
+                }
+
+                foreach (var envKey in envKeys)
+                {
+                    var envValue = Environment.GetEnvironmentVariable(envKey);
+                    if (!string.IsNullOrWhiteSpace(envValue))
+                    {
+                        status = $"Found in environment ({envKey}).";
+                        return envValue;
+                    }
+                }
+
+                status = $"Missing ({fileKey}).";
+                return string.Empty;
             }
 
             void LoadSettingsFields()
@@ -790,13 +823,57 @@ public static partial class TuiEntrypoint
                     var envLines = File.Exists(credentialsPath)
                         ? File.ReadAllLines(credentialsPath).ToList()
                         : new List<string>();
-                    aiProviderField.Text = GetEnvValue(envLines, "WORKBENCH_AI_PROVIDER") ?? "openai";
-                    aiOpenAiKeyField.Text = GetEnvValue(envLines, "WORKBENCH_AI_OPENAI_KEY") ?? string.Empty;
-                    aiModelField.Text = GetEnvValue(envLines, "WORKBENCH_AI_MODEL") ?? string.Empty;
-                    githubTokenField.Text = GetEnvValue(envLines, "WORKBENCH_GITHUB_TOKEN") ?? string.Empty;
+                    var providerValue = GetEnvValue(envLines, "WORKBENCH_AI_PROVIDER")
+                        ?? Environment.GetEnvironmentVariable("WORKBENCH_AI_PROVIDER")
+                        ?? "openai";
+                    aiProviderField.Text = providerValue;
+
+                    var openAiStatus = string.Empty;
+                    var openAiKeyValue = ResolveEnvValueFromSources(
+                        envLines,
+                        "WORKBENCH_AI_OPENAI_KEY",
+                        new[] { "WORKBENCH_AI_OPENAI_KEY", "OPENAI_API_KEY" },
+                        out openAiStatus);
+                    aiOpenAiKeyField.Text = openAiKeyValue;
+                    aiOpenAiKeyStatusLabel.Text = $"Status: {openAiStatus}";
+
+                    aiModelField.Text = GetEnvValue(envLines, "WORKBENCH_AI_MODEL")
+                        ?? Environment.GetEnvironmentVariable("WORKBENCH_AI_MODEL")
+                        ?? Environment.GetEnvironmentVariable("OPENAI_MODEL")
+                        ?? string.Empty;
+
+                    var githubStatus = string.Empty;
+                    var githubTokenValue = ResolveEnvValueFromSources(
+                        envLines,
+                        "WORKBENCH_GITHUB_TOKEN",
+                        new[] { "WORKBENCH_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN" },
+                        out githubStatus);
+                    githubTokenField.Text = githubTokenValue;
+                    githubTokenStatusLabel.Text = $"Status: {githubStatus}";
                 }
 
                 context.SettingsLoaded = true;
+            }
+
+            void ApplyCredentialEnvironment()
+            {
+                void SetEnv(string key, string? value)
+                {
+                    var normalized = value?.ToString();
+                    if (string.IsNullOrWhiteSpace(normalized))
+                    {
+                        Environment.SetEnvironmentVariable(key, null);
+                    }
+                    else
+                    {
+                        Environment.SetEnvironmentVariable(key, normalized);
+                    }
+                }
+
+                SetEnv("WORKBENCH_AI_PROVIDER", aiProviderField.Text?.ToString());
+                SetEnv("WORKBENCH_AI_OPENAI_KEY", aiOpenAiKeyField.Text?.ToString());
+                SetEnv("WORKBENCH_AI_MODEL", aiModelField.Text?.ToString());
+                SetEnv("WORKBENCH_GITHUB_TOKEN", githubTokenField.Text?.ToString());
             }
 
             void SaveConfigFromFields()
@@ -895,6 +972,22 @@ public static partial class TuiEntrypoint
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(credentialsPath) ?? repoRoot);
                     File.WriteAllText(credentialsPath, string.Join("\n", envLines) + "\n");
+                    ApplyCredentialEnvironment();
+                    var openAiStatus = string.Empty;
+                    ResolveEnvValueFromSources(
+                        envLines,
+                        "WORKBENCH_AI_OPENAI_KEY",
+                        new[] { "WORKBENCH_AI_OPENAI_KEY", "OPENAI_API_KEY" },
+                        out openAiStatus);
+                    aiOpenAiKeyStatusLabel.Text = $"Status: {openAiStatus}";
+
+                    var githubStatus = string.Empty;
+                    ResolveEnvValueFromSources(
+                        envLines,
+                        "WORKBENCH_GITHUB_TOKEN",
+                        new[] { "WORKBENCH_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN" },
+                        out githubStatus);
+                    githubTokenStatusLabel.Text = $"Status: {githubStatus}";
                     ShowInfo("Credentials saved.");
                 }
                 catch (Exception ex)
@@ -974,8 +1067,18 @@ public static partial class TuiEntrypoint
             settingsY++;
             settingsY = AddFieldRowWithPicker(settingsScroll, "AI provider:", aiProviderField, aiProviderPickButton, settingsY, labelWidth, 14);
             settingsY = AddFieldRow(settingsScroll, "AI OpenAI key:", aiOpenAiKeyField, settingsY, labelWidth, fieldWidth);
+            aiOpenAiKeyStatusLabel.X = labelWidth + 2;
+            aiOpenAiKeyStatusLabel.Y = settingsY;
+            aiOpenAiKeyStatusLabel.Width = Dim.Fill();
+            settingsScroll.Add(aiOpenAiKeyStatusLabel);
+            settingsY++;
             settingsY = AddFieldRow(settingsScroll, "AI model:", aiModelField, settingsY, labelWidth, fieldWidth);
             settingsY = AddFieldRow(settingsScroll, "GitHub token:", githubTokenField, settingsY, labelWidth, fieldWidth);
+            githubTokenStatusLabel.X = labelWidth + 2;
+            githubTokenStatusLabel.Y = settingsY;
+            githubTokenStatusLabel.Width = Dim.Fill();
+            settingsScroll.Add(githubTokenStatusLabel);
+            settingsY++;
 
             var saveCredsButton = new Button("Save credentials")
             {

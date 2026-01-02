@@ -97,6 +97,12 @@ public static partial class TuiEntrypoint
 
     private static string? GetEnvValue(IEnumerable<string> lines, string key)
     {
+        return TryGetEnvValue(lines, key, out var value) ? value : null;
+    }
+
+    private static bool TryGetEnvValue(IEnumerable<string> lines, string key, out string? value)
+    {
+        value = null;
         foreach (var line in lines)
         {
             if (!TryParseEnvLine(line, out var parsedKey, out var parsedValue))
@@ -105,11 +111,12 @@ public static partial class TuiEntrypoint
             }
             if (string.Equals(parsedKey, key, StringComparison.Ordinal))
             {
-                return parsedValue;
+                value = parsedValue;
+                return true;
             }
         }
 
-        return null;
+        return false;
     }
 
     private static void SetEnvValue(List<string> lines, string key, string? value)
