@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Workbench.Core;
@@ -9,20 +10,11 @@ public static class CodexService
     private const string FullAutoFlag = "--full-auto";
     private const string WebSearchFlag = "--web-search";
     private const string PromptFlag = "--prompt";
+    private static readonly string[] windowsExecutableExtensions = { ".exe", ".cmd", ".bat", ".com" };
 
     public static CommandResult Run(string repoRoot, params string[] args)
     {
-        var psi = new ProcessStartInfo("codex")
-        {
-            WorkingDirectory = repoRoot,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false
-        };
-        foreach (var arg in args)
-        {
-            psi.ArgumentList.Add(arg);
-        }
+        var psi = CreateCodexProcessStartInfo(repoRoot, redirectOutput: true, args);
 
         using var process = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start codex.");
         var stdout = process.StandardOutput.ReadToEnd();
@@ -56,15 +48,7 @@ public static class CodexService
 
     public static void StartFullAuto(string repoRoot, string prompt)
     {
-        var psi = new ProcessStartInfo("codex")
-        {
-            WorkingDirectory = repoRoot,
-            UseShellExecute = false
-        };
-        psi.ArgumentList.Add(FullAutoFlag);
-        psi.ArgumentList.Add(WebSearchFlag);
-        psi.ArgumentList.Add(PromptFlag);
-        psi.ArgumentList.Add(prompt);
+        var psi = CreateCodexProcessStartInfo(repoRoot, redirectOutput: false, FullAutoFlag, WebSearchFlag, PromptFlag, prompt);
 
         var process = Process.Start(psi);
         if (process is null)
@@ -169,6 +153,122 @@ public static class CodexService
         {
             throw new InvalidOperationException(errorMessage);
         }
+    }
+
+    private static ProcessStartInfo CreateCodexProcessStartInfo(string repoRoot, bool redirectOutput, params string[] args)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var codexPath = FindCodexExecutable();
+            if (!string.IsNullOrWhiteSpace(codexPath))
+            {
+                var extension = Path.GetExtension(codexPath);
+                if (string.Equals(extension, ".cmd", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(extension, ".bat", StringComparison.OrdinalIgnoreCase))
+                {
+                    return CreateCmdProcessStartInfo(repoRoot, redirectOutput, codexPath, args);
+                }
+
+                return CreateDirectProcessStartInfo(repoRoot, redirectOutput, codexPath, args);
+            }
+
+            return CreateCmdProcessStartInfo(repoRoot, redirectOutput, "codex", args);
+        }
+
+        return CreateDirectProcessStartInfo(repoRoot, redirectOutput, "codex", args);
+    }
+
+    private static ProcessStartInfo CreateDirectProcessStartInfo(string repoRoot, bool redirectOutput, string fileName, params string[] args)
+    {
+        var psi = new ProcessStartInfo(fileName)
+        {
+            WorkingDirectory = repoRoot,
+            UseShellExecute = false,
+            RedirectStandardOutput = redirectOutput,
+            RedirectStandardError = redirectOutput
+        };
+        foreach (var arg in args)
+        {
+            psi.ArgumentList.Add(arg);
+        }
+
+        return psi;
+    }
+
+    private static ProcessStartInfo CreateCmdProcessStartInfo(string repoRoot, bool redirectOutput, string commandName, params string[] args)
+    {
+        var psi = new ProcessStartInfo("cmd")
+        {
+            WorkingDirectory = repoRoot,
+            UseShellExecute = false,
+            RedirectStandardOutput = redirectOutput,
+            RedirectStandardError = redirectOutput
+        };
+        psi.ArgumentList.Add("/c");
+        psi.ArgumentList.Add(commandName);
+        foreach (var arg in args)
+        {
+            psi.ArgumentList.Add(arg);
+        }
+        return psi;
+    }
+
+    private static string? FindCodexExecutable()
+    {
+        var pathValue = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(pathValue))
+        {
+            return null;
+        }
+
+        var extensions = GetWindowsExecutableExtensions();
+        foreach (var path in pathValue.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = path.Trim();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            foreach (var extension in extensions)
+            {
+                var candidate = Path.Combine(trimmed, $"codex{extension}");
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string[] GetWindowsExecutableExtensions()
+    {
+        var pathext = Environment.GetEnvironmentVariable("PATHEXT");
+        if (string.IsNullOrWhiteSpace(pathext))
+        {
+            return windowsExecutableExtensions;
+        }
+
+        var extensions = new List<string>();
+        foreach (var extension in pathext.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = extension.Trim();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            extensions.Add(trimmed.StartsWith(".", StringComparison.Ordinal) ? trimmed : $".{trimmed}");
+        }
+
+        if (extensions.Count == 0)
+        {
+            return windowsExecutableExtensions;
+        }
+
+        return extensions.ToArray();
     }
 
     private static string EscapeForShellArg(string value)
