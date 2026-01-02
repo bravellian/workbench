@@ -273,7 +273,7 @@ public static partial class TuiEntrypoint
 
             void UpdateLastRefreshLabel()
             {
-                var now = DateTimeOffset.Now;
+                var now = DateTimeOffset.UtcNow;
                 lastRefreshLabel.Text = $"Updated: {now:HH:mm:ss}";
             }
 
