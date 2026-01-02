@@ -9,7 +9,6 @@ public static class CodexService
 
     private const string FullAutoFlag = "--full-auto";
     private const string WebSearchFlag = "--search";
-    private const string PromptFlag = "--prompt";
     private static readonly string[] windowsExecutableExtensions = { ".exe", ".cmd", ".bat", ".com" };
 
     public static CommandResult Run(string repoRoot, params string[] args)
@@ -48,7 +47,7 @@ public static class CodexService
 
     public static void StartFullAuto(string repoRoot, string prompt)
     {
-        var psi = CreateCodexProcessStartInfo(repoRoot, redirectOutput: false, FullAutoFlag, WebSearchFlag, PromptFlag, prompt);
+        var psi = CreateCodexProcessStartInfo(repoRoot, redirectOutput: false, FullAutoFlag, WebSearchFlag, prompt);
 
         var process = Process.Start(psi);
         if (process is null)
@@ -60,8 +59,8 @@ public static class CodexService
     public static void StartFullAutoInTerminal(string repoRoot, string prompt)
     {
         var command = OperatingSystem.IsWindows()
-            ? $"codex {FullAutoFlag} {WebSearchFlag} {PromptFlag} {EscapeForCmdArg(prompt)}"
-            : $"codex {FullAutoFlag} {WebSearchFlag} {PromptFlag} {EscapeForShellArg(prompt)}";
+            ? $"codex {FullAutoFlag} {WebSearchFlag} {EscapeForCmdArg(prompt)}"
+            : $"codex {FullAutoFlag} {WebSearchFlag} {EscapeForShellArg(prompt)}";
         if (OperatingSystem.IsWindows())
         {
             StartInWindowsTerminal(repoRoot, command);
