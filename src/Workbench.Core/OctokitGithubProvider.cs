@@ -52,30 +52,51 @@ public sealed class OctokitGithubProvider : IGithubProvider
             State = ItemStateFilter.All
         };
 
-        var pageCount = (int)Math.Ceiling(limit / 100.0);
+        var items = new List<GithubIssue>();
         var options = new ApiOptions
         {
             PageSize = 100,
-            PageCount = pageCount,
+            PageCount = 1,
             StartPage = 1
         };
 
-        var issues = await client.Issue.GetAllForRepository(repo.Owner, repo.Repo, request, options).ConfigureAwait(false);
-
-        var items = new List<GithubIssue>();
-        foreach (var issue in issues.Take(limit))
+        var page = 1;
+        while (items.Count < limit)
         {
-            var labels = issue.Labels.Select(label => label.Name).Where(name => !string.IsNullOrWhiteSpace(name)).ToList();
-            var state = issue.State.ToString().ToLowerInvariant();
-            items.Add(new GithubIssue(
-                repo,
-                issue.Number,
-                issue.Title ?? string.Empty,
-                issue.Body ?? string.Empty,
-                issue.HtmlUrl?.ToString() ?? string.Empty,
-                state,
-                labels,
-                Array.Empty<string>()));
+            options.StartPage = page;
+            var pageIssues = await client.Issue.GetAllForRepository(repo.Owner, repo.Repo, request, options).ConfigureAwait(false);
+            if (pageIssues.Count == 0)
+            {
+                break;
+            }
+
+            foreach (var issue in pageIssues)
+            {
+                // GitHub's issues API returns pull requests too. Treat PRs as related links, not work items.
+                if (issue.PullRequest is not null)
+                {
+                    continue;
+                }
+
+                var labels = issue.Labels.Select(label => label.Name).Where(name => !string.IsNullOrWhiteSpace(name)).ToList();
+                var state = issue.State.ToString().ToLowerInvariant();
+                items.Add(new GithubIssue(
+                    repo,
+                    issue.Number,
+                    issue.Title ?? string.Empty,
+                    issue.Body ?? string.Empty,
+                    issue.HtmlUrl?.ToString() ?? string.Empty,
+                    state,
+                    labels,
+                    Array.Empty<string>()));
+
+                if (items.Count >= limit)
+                {
+                    break;
+                }
+            }
+
+            page++;
         }
 
         return items;
@@ -218,66 +239,32 @@ public sealed class OctokitGithubProvider : IGithubProvider
         const string Query = """
             query($owner: String!, $name: String!, $number: Int!) {
               repository(owner: $owner, name: $name) {
-                issueOrPullRequest(number: $number) {
-                  __typename
-                  ... on Issue {
-                    number
-                    title
-                    body
-                    url
-                    state
-                    labels(first: 100) { nodes { name } }
-                    timelineItems(first: 100, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT, CLOSED_EVENT]) {
-                      nodes {
-                        __typename
-                        ... on CrossReferencedEvent {
-                          source {
-                            __typename
-                            ... on PullRequest { url }
-                          }
-                        }
-                        ... on ConnectedEvent {
-                          subject {
-                            __typename
-                            ... on PullRequest { url }
-                          }
-                        }
-                        ... on ClosedEvent {
-                          closer {
-                            __typename
-                            ... on PullRequest { url }
-                          }
+                issue(number: $number) {
+                  number
+                  title
+                  body
+                  url
+                  state
+                  labels(first: 100) { nodes { name } }
+                  timelineItems(first: 100, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT, CLOSED_EVENT]) {
+                    nodes {
+                      __typename
+                      ... on CrossReferencedEvent {
+                        source {
+                          __typename
+                          ... on PullRequest { url }
                         }
                       }
-                    }
-                  }
-                  ... on PullRequest {
-                    number
-                    title
-                    body
-                    url
-                    state
-                    labels(first: 100) { nodes { name } }
-                    timelineItems(first: 100, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT, CLOSED_EVENT]) {
-                      nodes {
-                        __typename
-                        ... on CrossReferencedEvent {
-                          source {
-                            __typename
-                            ... on PullRequest { url }
-                          }
+                      ... on ConnectedEvent {
+                        subject {
+                          __typename
+                          ... on PullRequest { url }
                         }
-                        ... on ConnectedEvent {
-                          subject {
-                            __typename
-                            ... on PullRequest { url }
-                          }
-                        }
-                        ... on ClosedEvent {
-                          closer {
-                            __typename
-                            ... on PullRequest { url }
-                          }
+                      }
+                      ... on ClosedEvent {
+                        closer {
+                          __typename
+                          ... on PullRequest { url }
                         }
                       }
                     }
@@ -314,7 +301,7 @@ public sealed class OctokitGithubProvider : IGithubProvider
         var errorMessage = TryReadGraphqlErrors(document.RootElement);
         if (!document.RootElement.TryGetProperty("data", out var data)
             || !data.TryGetProperty("repository", out var repoElement)
-            || !repoElement.TryGetProperty("issueOrPullRequest", out var issueElement)
+            || !repoElement.TryGetProperty("issue", out var issueElement)
             || issueElement.ValueKind == JsonValueKind.Null)
         {
             if (!string.IsNullOrWhiteSpace(errorMessage))
