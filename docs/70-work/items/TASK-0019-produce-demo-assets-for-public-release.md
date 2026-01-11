@@ -1,36 +1,42 @@
 ---
-id: TASK-0012
+id: TASK-0019
 type: task
-status: draft
+status: ready
 priority: medium
-owner: platform
-created: 2026-01-01
+owner: null
+created: 2026-01-11
 updated: null
-githubSynced: "2026-01-11T04:08:57Z"
+githubSynced: "2026-01-11T04:08:36Z"
 tags:
-  - launch
   - docs
+  - launch
 related:
   specs: []
   adrs: []
   files: []
   prs: []
   issues:
-    - "https://github.com/bravellian/workbench/issues/127"
+    - "https://github.com/bravellian/workbench/issues/121"
   branches: []
+title: produce demo assets for public release
 ---
 
-# TASK-0012 - Produce demo assets for public release
+# TASK-0019 - produce demo assets for public release
 
 ## Summary
 
+Imported from GitHub issue: https://github.com/bravellian/workbench/issues/121
+
+## Summary
 Capture high-signal visuals and recordings that demonstrate the CLI flow,
 validation output, and work item lifecycle.
 
 ## Acceptance criteria
-
 - A short terminal recording (asciinema or similar) covers init, new work item,
   and validation.
 - At least 2 annotated screenshots or GIFs show the workboard and a work item
   file with front matter.
 - Assets are referenced from README and/or public release docs.
+
+## Acceptance criteria
+-

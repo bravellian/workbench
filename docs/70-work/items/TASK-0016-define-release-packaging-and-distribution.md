@@ -1,12 +1,12 @@
 ---
-id: TASK-0013
+id: TASK-0016
 type: task
-status: draft
+status: ready
 priority: medium
-owner: platform
-created: 2026-01-01
+owner: null
+created: 2026-01-11
 updated: null
-githubSynced: "2026-01-11T04:08:58Z"
+githubSynced: "2026-01-11T04:08:34Z"
 tags:
   - release
   - tooling
@@ -16,19 +16,25 @@ related:
   files: []
   prs: []
   issues:
-    - "https://github.com/bravellian/workbench/issues/130"
+    - "https://github.com/bravellian/workbench/issues/124"
   branches: []
+title: define release packaging and distribution
 ---
 
-# TASK-0013 - Define release packaging and distribution
+# TASK-0016 - define release packaging and distribution
 
 ## Summary
 
+Imported from GitHub issue: https://github.com/bravellian/workbench/issues/124
+
+## Summary
 Document and automate the public release process so users have a clear path to
 installing Workbench.
 
 ## Acceptance criteria
-
 - Release checklist covers versioning, changelog/update notes, and validation.
 - Installation docs include dotnet tool install + optional native binaries.
 - CI or scripted workflow publishes artifacts in a repeatable way.
+
+## Acceptance criteria
+-

@@ -1,31 +1,32 @@
 ---
-id: TASK-0007
+id: TASK-0059
 type: task
-status: draft
+status: ready
 priority: medium
-owner: platform
-created: 2025-12-30
+owner: null
+created: 2026-01-11
 updated: null
-githubSynced: "2026-01-11T04:08:58Z"
+githubSynced: "2026-01-11T04:08:32Z"
 tags: []
 related:
-  specs:
-    - /docs/10-product/feature-spec-terminal-ui.md
-  adrs:
-    - /docs/40-decisions/ADR-2025-12-30-terminal-ui-mode-in-cli-executable.md
+  specs: []
+  adrs: []
   files: []
   prs: []
   issues:
-    - "https://github.com/bravellian/workbench/issues/129"
+    - "https://github.com/bravellian/workbench/issues/80"
   branches: []
 title: Build TUI MVP with command preview and dry-run
 ---
 
-# TASK-0007 - Build TUI MVP with command preview and dry-run
+# TASK-0059 - Build TUI MVP with command preview and dry-run
 
 ## Summary
-Build the initial Terminal.Gui-based TUI with work item workflows, command preview,
-and a global dry-run toggle for discoverability.
+
+Imported from GitHub issue: https://github.com/bravellian/workbench/issues/80
+
+## Summary
+Imported from GitHub issue: https://github.com/bravellian/workbench/issues/80
 
 ## Acceptance criteria
 - TUI provides basic work item workflows defined in the spec (list, view, create, update).
@@ -33,3 +34,6 @@ and a global dry-run toggle for discoverability.
 - Global dry-run toggle is visible and marks outputs as dry-run.
 - Errors surface CLI validation messages in dialogs.
 - Spec and ADR links are up to date.
+
+## Acceptance criteria
+-
