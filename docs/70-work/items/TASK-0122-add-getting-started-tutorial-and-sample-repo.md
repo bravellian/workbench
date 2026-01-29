@@ -1,0 +1,41 @@
+---
+id: TASK-0122
+type: task
+status: ready
+priority: medium
+owner: null
+created: 2026-01-29
+updated: null
+githubSynced: "2026-01-29T04:25:34Z"
+tags:
+  - docs
+  - onboarding
+related:
+  specs: []
+  adrs: []
+  files: []
+  prs: []
+  issues:
+    - "https://github.com/bravellian/workbench/issues/234"
+  branches: []
+title: add getting started tutorial and sample repo
+---
+
+# TASK-0122 - add getting started tutorial and sample repo
+
+## Summary
+
+Imported from GitHub issue: https://github.com/bravellian/workbench/issues/234
+
+## Summary
+Imported from GitHub issue: https://github.com/bravellian/workbench/issues/234
+
+## Acceptance criteria
+- A “Getting started” doc walks through install, init/scaffold, create a work
+  item, and validate the repo.
+- A sample repo (or scripted walkthrough in `examples/`) demonstrates the
+  workflow with real work items and docs.
+- README references the tutorial and sample so new users can find it quickly.
+
+## Acceptance criteria
+-
