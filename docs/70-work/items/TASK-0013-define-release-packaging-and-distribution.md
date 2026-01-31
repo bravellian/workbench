@@ -6,7 +6,7 @@ priority: medium
 owner: platform
 created: 2026-01-01
 updated: null
-githubSynced: null
+githubSynced: "2026-01-31T04:25:17Z"
 tags:
   - release
   - tooling
@@ -15,7 +15,8 @@ related:
   adrs: []
   files: []
   prs: []
-  issues: []
+  issues:
+    - "https://github.com/bravellian/workbench/issues/370"
   branches: []
 ---
 

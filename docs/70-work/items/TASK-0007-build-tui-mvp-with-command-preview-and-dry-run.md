@@ -6,7 +6,7 @@ priority: medium
 owner: platform
 created: 2025-12-30
 updated: null
-githubSynced: null
+githubSynced: "2026-01-31T04:25:16Z"
 tags: []
 related:
   specs:
@@ -15,7 +15,8 @@ related:
     - /docs/40-decisions/ADR-2025-12-30-terminal-ui-mode-in-cli-executable.md
   files: []
   prs: []
-  issues: []
+  issues:
+    - "https://github.com/bravellian/workbench/issues/369"
   branches: []
 title: Build TUI MVP with command preview and dry-run
 ---
