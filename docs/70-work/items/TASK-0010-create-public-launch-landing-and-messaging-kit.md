@@ -6,7 +6,7 @@ priority: high
 owner: platform
 created: 2026-01-01
 updated: null
-githubSynced: null
+githubSynced: "2026-02-01T05:00:45Z"
 tags:
   - launch
   - marketing
@@ -16,7 +16,8 @@ related:
   files:
     - /docs/00-overview/workbench-public-release.md
   prs: []
-  issues: []
+  issues:
+    - "https://github.com/bravellian/workbench/issues/383"
   branches: []
 ---
 

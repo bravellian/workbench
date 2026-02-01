@@ -6,7 +6,7 @@ priority: high
 owner: platform
 created: 2026-01-01
 updated: 2026-01-01
-githubSynced: null
+githubSynced: "2026-02-01T05:00:42Z"
 tags:
   - docs
   - onboarding
@@ -15,7 +15,8 @@ related:
   adrs: []
   files: []
   prs: []
-  issues: []
+  issues:
+    - "https://github.com/bravellian/workbench/issues/378"
   branches: []
 ---
 

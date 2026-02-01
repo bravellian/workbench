@@ -6,7 +6,7 @@ priority: medium
 owner: platform
 created: 2026-01-01
 updated: null
-githubSynced: null
+githubSynced: "2026-02-01T05:00:43Z"
 tags:
   - launch
   - docs
@@ -15,7 +15,8 @@ related:
   adrs: []
   files: []
   prs: []
-  issues: []
+  issues:
+    - "https://github.com/bravellian/workbench/issues/379"
   branches: []
 ---
 
