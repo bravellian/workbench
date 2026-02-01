@@ -6,7 +6,7 @@ priority: medium
 owner: platform
 created: 2026-01-01
 updated: null
-githubSynced: null
+githubSynced: "2026-02-01T04:30:53Z"
 tags:
   - launch
   - docs
@@ -15,8 +15,15 @@ related:
   adrs: []
   files: []
   prs: []
-  issues: []
+  issues:
+    - "https://github.com/bravellian/workbench/issues/374"
   branches: []
+workbench:
+  type: doc
+  workItems: []
+  codeRefs: []
+  pathHistory: []
+  path: /docs/70-work/items/TASK-0014-add-case-studies-and-proof-points.md
 ---
 
 # TASK-0014 - Add case studies and proof points

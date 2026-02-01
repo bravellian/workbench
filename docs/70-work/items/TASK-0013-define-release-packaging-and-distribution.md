@@ -6,7 +6,7 @@ priority: medium
 owner: platform
 created: 2026-01-01
 updated: null
-githubSynced: null
+githubSynced: "2026-02-01T04:30:54Z"
 tags:
   - release
   - tooling
@@ -15,8 +15,15 @@ related:
   adrs: []
   files: []
   prs: []
-  issues: []
+  issues:
+    - "https://github.com/bravellian/workbench/issues/376"
   branches: []
+workbench:
+  type: doc
+  workItems: []
+  codeRefs: []
+  pathHistory: []
+  path: /docs/70-work/items/TASK-0013-define-release-packaging-and-distribution.md
 ---
 
 # TASK-0013 - Define release packaging and distribution
